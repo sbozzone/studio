@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link'; // Added for settings link
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
@@ -10,12 +11,12 @@ import VariationGeneratorDialog from '@/components/dinnertime/variation-generato
 import ExportButton from '@/components/dinnertime/export-button';
 import PrintButton from '@/components/dinnertime/print-button';
 import ShoppingList from '@/components/dinnertime/shopping-list';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// Input and Label removed as they are no longer used directly for familyName here
+import { Button } from '@/components/ui/button'; // For Settings Button
 import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
-import { ChefHat } from 'lucide-react';
+import { ChefHat, Settings } from 'lucide-react'; // Added Settings
 import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
 import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
 import { fetchWeatherForecast } from '@/lib/weather-utils';
@@ -38,7 +39,7 @@ export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]);
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
-  const [familyName, setFamilyName] = useState<string>('My');
+  const [familyName, setFamilyName] = useState<string>('My'); // Still needed for display
 
   const [suggestedAIItemNames, setSuggestedAIItemNames] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -60,8 +61,13 @@ export default function DinnerTimePage() {
     setIsClient(true);
     setOrderedDaysForDisplay(getRotatedDays());
 
+    // Load family name from localStorage for display
     const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-    if (storedFamilyName) setFamilyName(storedFamilyName);
+    if (storedFamilyName) {
+        setFamilyName(storedFamilyName);
+    } else {
+        setFamilyName('My'); // Default if not set
+    }
 
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
@@ -93,7 +99,6 @@ export default function DinnerTimePage() {
       setWeeklyPlan(initialWeeklyPlan);
     }
 
-    // Fetch weather
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -115,12 +120,26 @@ export default function DinnerTimePage() {
       setIsLoadingWeather(false);
       toast({ title: "Location Error", description: "Geolocation is not supported by this browser.", variant: "destructive" });
     }
+  }, [toast]);
 
-  }, [toast]); // Added toast to dependency array
-
+  // This useEffect listens for storage changes to update familyName if changed on another page/tab
   useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_familyName', familyName);
-  }, [familyName, isClient]);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'dinnertime_familyName' && event.newValue !== null) {
+        setFamilyName(event.newValue);
+      } else if (event.key === 'dinnertime_familyName' && event.newValue === null) {
+        setFamilyName('My'); // Reset to default if cleared
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+
+  // Removed useEffect for saving familyName from this page. It's now handled in /settings
 
   useEffect(() => {
     if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
@@ -265,22 +284,11 @@ export default function DinnerTimePage() {
         <div className="flex items-center justify-center">
           <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16 text-primary" />
           <h1 className="text-5xl md:text-6xl font-headline text-primary">
-            {familyName}'s DinnerTime
+            {familyName ? familyName + "'s" : "My"} DinnerTime
           </h1>
         </div>
         <p className="text-lg text-muted-foreground mt-2">Plan your weekly entrees and sides with appetite and comfort.</p>
-         <div className="max-w-xs mx-auto">
-            <Label htmlFor="familyName" className="sr-only">Family Name</Label>
-            <Input
-              id="familyName"
-              type="text"
-              value={familyName}
-              onChange={(e) => setFamilyName(e.target.value)}
-              placeholder="Your Family Name"
-              className="text-center text-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Customize your planner title.</p>
-          </div>
+         {/* Family name input removed from here */}
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -311,7 +319,12 @@ export default function DinnerTimePage() {
             isLoadingWeather={isLoadingWeather}
           />
           <ShoppingList plan={weeklyPlan} />
-          <div className="flex flex-col sm:flex-row justify-end gap-2 non-printable-elements">
+          <div className="flex flex-col sm:flex-row justify-end items-center gap-2 non-printable-elements">
+            <Link href="/settings" passHref>
+              <Button variant="outline" size="icon" aria-label="Settings" className="w-full sm:w-auto">
+                <Settings className="h-5 w-5" />
+              </Button>
+            </Link>
             <PrintButton />
             <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} />
           </div>
