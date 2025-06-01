@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from 'react'; // Added this line
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
