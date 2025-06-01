@@ -4,13 +4,13 @@
 import type { FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import type { WeeklyPlan, Item, DayOfWeek } from '@/types'; 
+import type { WeeklyPlan, Item, DayOfWeek, DayPlanData } from '@/types'; 
 import { useToast } from '@/hooks/use-toast';
 
 interface ExportButtonProps {
   plan: WeeklyPlan;
   items: Item[]; 
-  orderedDays: DayOfWeek[]; // New prop for ordered days
+  orderedDays: DayOfWeek[];
 }
 
 const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
@@ -18,12 +18,19 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
 
   const handleExport = () => {
     let content = "DinnerTime - Weekly Plan\n\n";
-    orderedDays.forEach(day => { // Iterate over orderedDays
-      const item = plan[day];
-      content += `${day}: ${item ? `${item.name} (${item.type})` : 'Not planned'}\n`;
+    orderedDays.forEach(day => {
+      const dayPlan: DayPlanData = plan[day];
+      const itemText = dayPlan.item ? `${dayPlan.item.name} (${dayPlan.item.type})` : 'Not planned';
+      content += `${day}: ${itemText}\n`;
+      if (dayPlan.note) {
+        content += `  Note: ${dayPlan.note}\n`;
+      }
     });
 
-    const itemsInPlan = Object.values(plan).filter(item => item !== null) as Item[];
+    const itemsInPlan = Object.values(plan)
+                            .map((dayData: DayPlanData) => dayData.item)
+                            .filter(item => item !== null) as Item[];
+
     const itemCounts: Record<string, { count: number; type: string }> = {};
     itemsInPlan.forEach(item => {
       const key = `${item.name} (${item.type})`;
@@ -46,7 +53,6 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
         content += `- ${item.displayText} ${item.count > 1 ? `(x${item.count})` : ''}\n`;
       });
     }
-
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const link = document.createElement('a');

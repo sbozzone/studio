@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { WeeklyPlan, Item } from '@/types';
+import type { WeeklyPlan, Item, DayPlanData } from '@/types';
 import { ShoppingCart } from 'lucide-react';
 
 interface ShoppingListProps {
@@ -11,9 +11,10 @@ interface ShoppingListProps {
 }
 
 const ShoppingList: FC<ShoppingListProps> = ({ plan }) => {
-  const itemsInPlan = Object.values(plan).filter(item => item !== null) as Item[];
+  const itemsInPlan = Object.values(plan)
+    .map((dayData: DayPlanData) => dayData.item)
+    .filter(item => item !== null) as Item[];
   
-  // Create a map to count occurrences of each item name and type combination
   const itemCounts: Record<string, { count: number; type: string }> = {};
   itemsInPlan.forEach(item => {
     const key = `${item.name} (${item.type})`;
@@ -30,7 +31,6 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan }) => {
       count: data.count,
     }))
     .sort((a, b) => a.displayText.localeCompare(b.displayText));
-
 
   if (uniqueItemsWithCounts.length === 0) {
     return (

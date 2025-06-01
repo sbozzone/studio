@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
@@ -10,8 +10,10 @@ import VariationGeneratorDialog from '@/components/dinnertime/variation-generato
 import ExportButton from '@/components/dinnertime/export-button';
 import PrintButton from '@/components/dinnertime/print-button';
 import ShoppingList from '@/components/dinnertime/shopping-list';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { DayOfWeek, WeeklyPlan, Item, ItemType } from '@/types';
+import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat } from 'lucide-react';
 import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
@@ -19,23 +21,23 @@ import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/v
 
 const getRotatedDays = (): DayOfWeek[] => {
   const todayIndex = new Date().getDay(); // 0 for Sunday, 1 for Monday...
-  // DAYS_OF_WEEK = ["Monday", "Tuesday", ..., "Sunday"]
-  // Map todayIndex (Sun=0, Mon=1) to startIndexInDaysOfWeek (Mon=0, Tue=1, ..., Sun=6)
   const startIndexInDaysOfWeek = (todayIndex === 0) ? 6 : todayIndex - 1;
-
-  const rotatedDays = [
+  return [
     ...DAYS_OF_WEEK.slice(startIndexInDaysOfWeek),
     ...DAYS_OF_WEEK.slice(0, startIndexInDaysOfWeek)
   ];
-  return rotatedDays;
 };
+
+const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
+  acc[day] = { item: null, note: '' };
+  return acc;
+}, {} as WeeklyPlan);
 
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]);
-  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(
-    DAYS_OF_WEEK.reduce((acc, day) => ({ ...acc, [day]: null }), {} as WeeklyPlan)
-  );
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
+  const [familyName, setFamilyName] = useState<string>('My');
 
   const [suggestedAIItemNames, setSuggestedAIItemNames] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -48,18 +50,47 @@ export default function DinnerTimePage() {
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
 
-
   useEffect(() => {
     setIsClient(true);
     setOrderedDaysForDisplay(getRotatedDays());
 
+    const storedFamilyName = localStorage.getItem('dinnertime_familyName');
+    if (storedFamilyName) setFamilyName(storedFamilyName);
+
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
+    
     const storedFavorites = localStorage.getItem('dinnertime_favoriteItemIds');
     if (storedFavorites) setFavoriteItemIds(JSON.parse(storedFavorites));
+    
     const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
-    if (storedPlan) setWeeklyPlan(JSON.parse(storedPlan));
+    if (storedPlan) {
+      try {
+        const parsedPlan = JSON.parse(storedPlan);
+        const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
+          const dayData = parsedPlan[day];
+          if (dayData === null || (dayData && dayData.hasOwnProperty('id') && !dayData.hasOwnProperty('item'))) { // Old structure: Item or null
+            acc[day] = { item: dayData as Item | null, note: '' };
+          } else if (dayData && dayData.hasOwnProperty('item')) { // New structure already
+            acc[day] = {item: dayData.item, note: dayData.note || ''};
+          } else { 
+            acc[day] = { item: null, note: '' };
+          }
+          return acc;
+        }, {} as WeeklyPlan);
+        setWeeklyPlan(migratedPlan);
+      } catch (e) {
+        console.error("Failed to parse or migrate weekly plan from localStorage", e);
+        setWeeklyPlan(initialWeeklyPlan);
+      }
+    } else {
+      setWeeklyPlan(initialWeeklyPlan);
+    }
   }, []);
+
+  useEffect(() => {
+    if(isClient) localStorage.setItem('dinnertime_familyName', familyName);
+  }, [familyName, isClient]);
 
   useEffect(() => {
     if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
@@ -93,10 +124,9 @@ export default function DinnerTimePage() {
     
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
-    // Iterate over canonical DAYS_OF_WEEK for data manipulation consistency
     for (const day of DAYS_OF_WEEK) {
-      if (updatedPlan[day]?.id === itemIdToDelete) {
-        updatedPlan[day] = null;
+      if (updatedPlan[day].item?.id === itemIdToDelete) {
+        updatedPlan[day] = { ...updatedPlan[day], item: null };
         planChanged = true;
       }
     }
@@ -120,9 +150,16 @@ export default function DinnerTimePage() {
     });
   };
 
-  const handleUpdatePlan = (day: DayOfWeek, item: Item | null) => {
-    setWeeklyPlan((prev) => ({ ...prev, [day]: item }));
-  };
+  const handleUpdateDayInPlan = useCallback((day: DayOfWeek, newDayData: Partial<DayPlanData>) => {
+    setWeeklyPlan(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        ...newDayData,
+      }
+    }));
+  }, []);
+
 
   const handleGetSuggestions = async () => {
     if (items.length === 0) {
@@ -154,7 +191,6 @@ export default function DinnerTimePage() {
     };
     handleAddItem(newItem);
   };
-
 
   const handleSelectForVariation = (item: Item) => {
     setSelectedItemForVariation(item);
@@ -196,12 +232,26 @@ export default function DinnerTimePage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <header className="text-center py-8 non-printable-elements">
-        <h1 className="text-5xl md:text-6xl font-headline text-primary flex items-center justify-center">
-          <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16" />
-          DinnerTime
-        </h1>
+      <header className="text-center py-8 non-printable-elements space-y-4">
+        <div className="flex items-center justify-center">
+          <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16 text-primary" />
+          <h1 className="text-5xl md:text-6xl font-headline text-primary">
+            {familyName}'s DinnerTime
+          </h1>
+        </div>
         <p className="text-lg text-muted-foreground mt-2">Plan your weekly entrees and sides with appetite and comfort.</p>
+         <div className="max-w-xs mx-auto">
+            <Label htmlFor="familyName" className="sr-only">Family Name</Label>
+            <Input
+              id="familyName"
+              type="text"
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
+              placeholder="Your Family Name"
+              className="text-center text-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Customize your planner title.</p>
+          </div>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -226,7 +276,7 @@ export default function DinnerTimePage() {
           <WeeklyPlannerGrid
             plan={weeklyPlan}
             allItems={items}
-            onUpdatePlan={handleUpdatePlan}
+            onUpdateDayData={handleUpdateDayInPlan}
             orderedDays={orderedDaysForDisplay}
           />
           <ShoppingList plan={weeklyPlan} />

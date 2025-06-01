@@ -132,8 +132,8 @@ body {
     color: #000 !important;
   }
    #printable-area .card-title svg {
-    color: hsl(var(--primary)) !important; /* Use primary color for icons in titles */
-    fill: hsl(var(--primary)) !important; /* For filled icons if any */
+    color: hsl(var(--primary)) !important; 
+    fill: hsl(var(--primary)) !important; 
    }
 
   /* Hide specific buttons within cards in the printable area */
@@ -152,12 +152,12 @@ body {
     appearance: none;
     box-shadow: none !important;
     color: #000 !important;
-    height: auto !important; /* Ensure height is not fixed by shadcn styles */
-    min-height: 1.5rem; /* Ensure some min height */
-    text-align: left; /* Ensure text alignment */
+    height: auto !important; 
+    min-height: 1.5rem; 
+    text-align: left; 
   }
   #printable-area .day-card-select .day-card-select-trigger span {
-    line-height: 1.2; /* Adjust line height if needed */
+    line-height: 1.2; 
   }
   #printable-area .day-card-select .day-card-select-trigger span[data-placeholder] {
     color: #555 !important; 
@@ -167,6 +167,37 @@ body {
     display: none !important;
     visibility: hidden !important;
   }
+
+  /* For DayCard notes */
+  #printable-area .day-card-note-area label {
+    display: block; /* Ensure label is visible */
+    color: #333 !important;
+    font-size: 0.8rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+  #printable-area .day-card-note-area label svg {
+    display: inline-block !important; /* Ensure icon is visible */
+    vertical-align: middle;
+  }
+  #printable-area .day-card-note-area textarea {
+    display: block !important;
+    width: 100% !important;
+    border: 1px dashed #ddd !important;
+    background-color: #f9f9f9 !important;
+    padding: 0.25rem !important;
+    min-height: 2.5em !important; /* Ensure enough space for a couple of lines */
+    color: #000 !important;
+    font-size: 0.85rem !important;
+    resize: none !important; /* Hide resize handle */
+    box-shadow: none !important;
+  }
+   /* If textarea is empty, show a placeholder-like style */
+  #printable-area .day-card-note-area textarea:empty::before {
+    content: "-- no note --";
+    color: #999 !important;
+    font-style: italic;
+  }
+
 
   /* For ShoppingList, ensure list items are clean */
   #printable-area .shopping-list-item {
@@ -186,7 +217,7 @@ body {
     color: #000 !important; /* Ensure headlines are black */
   }
   #printable-area .text-primary {
-      color: hsl(var(--primary)) !important; /* Keep primary color for text if desired */
+      color: hsl(var(--primary)) !important; 
   }
   #printable-area p, #printable-area li, #printable-area span, #printable-area div {
     color: #000 !important; /* General text color */

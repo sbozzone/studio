@@ -4,18 +4,17 @@
 import type { FC } from 'react';
 import DayCard from './day-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DayOfWeek, WeeklyPlan, Item } from '@/types';
-// import { DAYS_OF_WEEK } from '@/types'; // No longer needed here
+import type { DayOfWeek, WeeklyPlan, Item, DayPlanData } from '@/types';
 import { NotebookText } from 'lucide-react';
 
 interface WeeklyPlannerGridProps {
   plan: WeeklyPlan;
   allItems: Item[];
-  onUpdatePlan: (day: DayOfWeek, item: Item | null) => void;
-  orderedDays: DayOfWeek[]; // New prop for ordered days
+  onUpdateDayData: (day: DayOfWeek, data: Partial<DayPlanData>) => void; // Changed prop name
+  orderedDays: DayOfWeek[];
 }
 
-const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdatePlan, orderedDays }) => {
+const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdateDayData, orderedDays }) => {
   return (
     <Card className="shadow-xl">
       <CardHeader>
@@ -26,13 +25,13 @@ const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdat
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {orderedDays.map((day) => ( // Use orderedDays for mapping
+          {orderedDays.map((day) => (
             <DayCard
               key={day}
               day={day}
-              plannedItem={plan[day]}
+              dayData={plan[day]} // Pass the whole dayData object
               allItems={allItems}
-              onAssignItem={onUpdatePlan}
+              onUpdateDayData={onUpdateDayData} // Pass the updated handler
             />
           ))}
         </div>

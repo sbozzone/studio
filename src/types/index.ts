@@ -11,4 +11,9 @@ export interface Item {
   type: ItemType;
 }
 
-export type WeeklyPlan = Record<DayOfWeek, Item | null>;
+export interface DayPlanData {
+  item: Item | null;
+  note: string;
+}
+
+export type WeeklyPlan = Record<DayOfWeek, DayPlanData>;
