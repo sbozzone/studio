@@ -28,12 +28,16 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
     }
   };
 
-  const plannedItems = Object.values(plan)
-    .map((dayData: DayPlanData) => dayData.item)
-    .filter(item => item !== null) as Item[];
+  const plannedItems: Item[] = [];
+  Object.values(plan).forEach((dayData: DayPlanData) => {
+    if (dayData.entree) plannedItems.push(dayData.entree);
+    if (dayData.side1) plannedItems.push(dayData.side1);
+    if (dayData.side2) plannedItems.push(dayData.side2);
+  });
   
   const itemCounts: Record<string, { count: number; type: string }> = {};
   plannedItems.forEach(item => {
+    if (!item) return; // Should not happen if logic above is correct
     const key = `${item.name} (${item.type})`;
     if (itemCounts[key]) {
       itemCounts[key].count++;

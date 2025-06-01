@@ -31,7 +31,7 @@ const getRotatedDays = (): DayOfWeek[] => {
 };
 
 const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-  acc[day] = { item: null, note: '' };
+  acc[day] = { entree: null, side1: null, side2: null, note: '' };
   return acc;
 }, {} as WeeklyPlan);
 
@@ -85,20 +85,45 @@ export default function DinnerTimePage() {
       try {
         const parsedPlan = JSON.parse(storedPlan);
         const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
+          acc[day] = { entree: null, side1: null, side2: null, note: '' }; // Initialize with new structure
           const dayData = parsedPlan[day];
-          if (dayData === null || (dayData && dayData.hasOwnProperty('id') && !dayData.hasOwnProperty('item'))) {
-            acc[day] = { item: dayData as Item | null, note: '' };
-          } else if (dayData && dayData.hasOwnProperty('item')) {
-            acc[day] = {item: dayData.item, note: dayData.note || ''};
-          } else { 
-            acc[day] = { item: null, note: '' };
+
+          if (dayData) {
+            // Check if it's the new structure
+            if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
+              acc[day].entree = dayData.entree || null;
+              acc[day].side1 = dayData.side1 || null;
+              acc[day].side2 = dayData.side2 || null;
+              acc[day].note = dayData.note || '';
+            } 
+            // Check if it's the intermediate structure { item: Item | null, note: string }
+            else if (dayData.hasOwnProperty('item')) {
+              const oldItem = dayData.item as Item | null;
+              if (oldItem) {
+                if (oldItem.type === 'entree') {
+                  acc[day].entree = oldItem;
+                } else if (oldItem.type === 'side') {
+                  acc[day].side1 = oldItem; // Place in side1 by default
+                }
+              }
+              acc[day].note = dayData.note || '';
+            }
+            // Check if it's the very old structure (just an Item or null)
+            else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
+                 const oldSingleItem = dayData as Item;
+                 if (oldSingleItem.type === 'entree') {
+                    acc[day].entree = oldSingleItem;
+                 } else if (oldSingleItem.type === 'side') {
+                    acc[day].side1 = oldSingleItem;
+                 }
+            }
           }
           return acc;
         }, {} as WeeklyPlan);
         setWeeklyPlan(migratedPlan);
       } catch (e) {
         console.error("Failed to parse or migrate weekly plan from localStorage", e);
-        setWeeklyPlan(initialWeeklyPlan);
+        setWeeklyPlan(initialWeeklyPlan); // Fallback to new initial plan
       }
     } else {
       setWeeklyPlan(initialWeeklyPlan);
@@ -198,11 +223,29 @@ export default function DinnerTimePage() {
     if (!itemToDelete) return;
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
     setFavoriteItemIds(prev => prev.filter(id => id !== itemIdToDelete));
+    
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
     for (const day of DAYS_OF_WEEK) {
-      if (updatedPlan[day].item?.id === itemIdToDelete) {
-        updatedPlan[day] = { ...updatedPlan[day], item: null };
+      let dayModified = false;
+      const currentDayPlan = updatedPlan[day];
+      const newDayPlanData = { ...currentDayPlan };
+
+      if (newDayPlanData.entree?.id === itemIdToDelete) {
+        newDayPlanData.entree = null;
+        dayModified = true;
+      }
+      if (newDayPlanData.side1?.id === itemIdToDelete) {
+        newDayPlanData.side1 = null;
+        dayModified = true;
+      }
+      if (newDayPlanData.side2?.id === itemIdToDelete) {
+        newDayPlanData.side2 = null;
+        dayModified = true;
+      }
+
+      if (dayModified) {
+        updatedPlan[day] = newDayPlanData;
         planChanged = true;
       }
     }

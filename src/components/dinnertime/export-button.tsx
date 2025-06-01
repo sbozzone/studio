@@ -22,21 +22,32 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays, manualGroceryI
     content += "== Weekly Plan ==\n";
     orderedDays.forEach(day => {
       const dayPlan: DayPlanData = plan[day];
-      const itemText = dayPlan.item ? `${dayPlan.item.name} (${dayPlan.item.type})` : 'Not planned';
-      content += `${day}: ${itemText}\n`;
+      content += `${day}:\n`;
+      const entreeText = dayPlan.entree ? `  Entree: ${dayPlan.entree.name} (${dayPlan.entree.type})` : '  Entree: Not planned';
+      content += `${entreeText}\n`;
+      const side1Text = dayPlan.side1 ? `  Side 1: ${dayPlan.side1.name} (${dayPlan.side1.type})` : '  Side 1: Not planned';
+      content += `${side1Text}\n`;
+      const side2Text = dayPlan.side2 ? `  Side 2: ${dayPlan.side2.name} (${dayPlan.side2.type})` : '  Side 2: Not planned';
+      content += `${side2Text}\n`;
+      
       if (dayPlan.note) {
         content += `  Note: ${dayPlan.note}\n`;
       }
+      content += "\n"; // Extra newline for spacing between days
     });
 
     content += "\n== Shopping List ==\n";
     
-    const itemsInPlan = Object.values(plan)
-                            .map((dayData: DayPlanData) => dayData.item)
-                            .filter(item => item !== null) as Item[];
+    const itemsInPlan: Item[] = [];
+    Object.values(plan).forEach((dayData: DayPlanData) => {
+        if (dayData.entree) itemsInPlan.push(dayData.entree);
+        if (dayData.side1) itemsInPlan.push(dayData.side1);
+        if (dayData.side2) itemsInPlan.push(dayData.side2);
+    });
 
     const itemCounts: Record<string, { count: number; type: string }> = {};
     itemsInPlan.forEach(item => {
+      if(!item) return;
       const key = `${item.name} (${item.type})`;
       if (itemCounts[key]) {
         itemCounts[key].count++;
@@ -59,7 +70,7 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays, manualGroceryI
     }
 
     if (manualGroceryItems.length > 0) {
-      if (uniqueItemsWithCounts.length > 0) content += "\n"; // Add space if planned items exist
+      if (uniqueItemsWithCounts.length > 0) content += "\n"; 
       content += "Manual Additions:\n";
       manualGroceryItems.forEach(item => {
         content += `- ${item.name}\n`;

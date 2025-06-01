@@ -12,7 +12,9 @@ export interface Item {
 }
 
 export interface DayPlanData {
-  item: Item | null;
+  entree: Item | null;
+  side1: Item | null;
+  side2: Item | null;
   note: string;
 }
 
@@ -44,3 +46,4 @@ export interface ManualGroceryItem {
   id: string;
   name: string;
 }
+
