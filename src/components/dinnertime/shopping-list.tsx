@@ -3,7 +3,7 @@
 
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { WeeklyPlan } from '@/types';
+import type { WeeklyPlan, Item } from '@/types';
 import { ShoppingCart } from 'lucide-react';
 
 interface ShoppingListProps {
@@ -11,12 +11,28 @@ interface ShoppingListProps {
 }
 
 const ShoppingList: FC<ShoppingListProps> = ({ plan }) => {
-  const mealsInPlan = Object.values(plan).filter(meal => meal !== null) as string[];
-  const uniqueMeals = Array.from(new Set(mealsInPlan)).sort();
+  const itemsInPlan = Object.values(plan).filter(item => item !== null) as Item[];
+  
+  // Create a map to count occurrences of each item name and type combination
+  const itemCounts: Record<string, { count: number; type: string }> = {};
+  itemsInPlan.forEach(item => {
+    const key = `${item.name} (${item.type})`;
+    if (itemCounts[key]) {
+      itemCounts[key].count++;
+    } else {
+      itemCounts[key] = { count: 1, type: item.type };
+    }
+  });
 
-  if (uniqueMeals.length === 0) {
-    // Optionally, you could render a message here, but for print, null is fine.
-    // For UI consistency, it might be better to show a card with "No meals planned for shopping."
+  const uniqueItemsWithCounts = Object.entries(itemCounts)
+    .map(([nameAndType, data]) => ({
+      displayText: nameAndType,
+      count: data.count,
+    }))
+    .sort((a, b) => a.displayText.localeCompare(b.displayText));
+
+
+  if (uniqueItemsWithCounts.length === 0) {
     return (
        <Card className="shadow-lg">
         <CardHeader>
@@ -26,7 +42,7 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">No meals planned yet to generate a shopping list.</p>
+          <p className="text-muted-foreground">No items planned yet to generate a shopping list.</p>
         </CardContent>
       </Card>
     );
@@ -42,10 +58,15 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan }) => {
       </CardHeader>
       <CardContent>
         <ul className="space-y-1">
-          {uniqueMeals.map(meal => (
-            <li key={meal} className="text-foreground shopping-list-item">{meal}</li>
+          {uniqueItemsWithCounts.map(item => (
+            <li key={item.displayText} className="text-foreground shopping-list-item">
+              {item.displayText} {item.count > 1 ? `(x${item.count})` : ''}
+            </li>
           ))}
         </ul>
+        <p className="text-xs text-muted-foreground mt-2">
+          Note: This list shows items based on your weekly plan. Actual ingredients may vary.
+        </p>
       </CardContent>
     </Card>
   );

@@ -1,47 +1,58 @@
-"use client";
+'use server';
 
-import type { FC } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star, Lightbulb, Trash2, Drumstick } from 'lucide-react';
+/**
+ * @fileOverview Item variation AI agent.
+ *
+ * - generateItemVariations - A function that handles item variation generation.
+ * - GenerateItemVariationsInput - The input type for the generateItemVariations function.
+ * - GenerateItemVariationsOutput - The return type for the generateItemVariations function.
+ */
 
-interface MealCardProps {
-  mealName: string;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-  onSelectForVariation: () => void;
-  onDeleteMeal?: () => void; // Optional: if meals can be deleted from the main list
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+// Input schema still expects strings for selected item and favorite items
+const GenerateItemVariationsInputSchema = z.object({
+  selectedMeal: z.string().describe('The item (entree or side dish) for which to generate variations.'), // field name selectedMeal kept
+  favoriteMeals: z.array(z.string()).describe('A list of the user\u0027s favorite items (entrees or side dishes).'), // field name favoriteMeals kept
+});
+export type GenerateItemVariationsInput = z.infer<typeof GenerateItemVariationsInputSchema>;
+
+const GenerateItemVariationsOutputSchema = z.object({
+  variations: z
+    .array(z.string())
+    .describe('A list of suggested item variations based on ingredient substitutions or style changes.'),
+});
+export type GenerateItemVariationsOutput = z.infer<typeof GenerateItemVariationsOutputSchema>;
+
+export async function generateMealVariations( // Function name kept for now
+  input: GenerateItemVariationsInput
+): Promise<GenerateItemVariationsOutput> {
+  return generateItemVariationsFlow(input);
 }
 
-const MealCard: FC<MealCardProps> = ({ mealName, isFavorite, onToggleFavorite, onSelectForVariation, onDeleteMeal }) => {
-  return (
-    <Card className="flex flex-col justify-between">
-      <CardHeader>
-        <CardTitle className="flex items-center font-headline text-xl">
-          <Drumstick className="mr-2 h-5 w-5 text-primary" />
-          {mealName}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Placeholder for potential future content like ingredients or image */}
-      </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-        <Button variant="outline" onClick={onToggleFavorite} className="flex-grow">
-          <Star className={`mr-2 h-5 w-5 ${isFavorite ? 'fill-yellow-400 text-yellow-500' : 'text-muted-foreground'}`} />
-          {isFavorite ? 'Unfavorite' : 'Favorite'}
-        </Button>
-        <Button variant="outline" onClick={onSelectForVariation} className="flex-grow">
-          <Lightbulb className="mr-2 h-5 w-5 text-accent" />
-          Variations
-        </Button>
-        {onDeleteMeal && (
-           <Button variant="ghost" size="icon" onClick={onDeleteMeal} aria-label="Delete meal">
-             <Trash2 className="h-5 w-5 text-destructive" />
-           </Button>
-        )}
-      </CardFooter>
-    </Card>
-  );
-};
+const prompt = ai.definePrompt({
+  name: 'generateItemVariationsPrompt', // Renamed prompt
+  input: {schema: GenerateItemVariationsInputSchema},
+  output: {schema: GenerateItemVariationsOutputSchema},
+  prompt: `You are a culinary expert who can create interesting variations on items (entrees or side dishes).
 
-export default MealCard;
+  You will take a selected item and a list of favorite items and suggest variations to the selected item by incorporating ingredients or techniques from the favorite items.
+  Suggest no more than 3 variations. The substitutions may range from small variations (e.g., add different spices) to significant changes in key ingredients or preparation style.
+  Focus on creating appealing and practical variations.
+
+  Selected Item: {{{selectedMeal}}}
+  Favorite Items: {{#each favoriteMeals}}{{{this}}}\n{{/each}}`,
+});
+
+const generateItemVariationsFlow = ai.defineFlow(
+  {
+    name: 'generateItemVariationsFlow', // Renamed flow
+    inputSchema: GenerateItemVariationsInputSchema,
+    outputSchema: GenerateItemVariationsOutputSchema,
+  },
+  async input => {
+    const {output} = await prompt(input);
+    return output!;
+  }
+);

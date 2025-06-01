@@ -6,16 +6,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Trash2, CalendarDays } from 'lucide-react';
-import type { DayOfWeek } from '@/types';
+import type { DayOfWeek, Item } from '@/types';
 
 interface DayCardProps {
   day: DayOfWeek;
-  plannedMeal: string | null;
-  allMeals: string[];
-  onAssignMeal: (day: DayOfWeek, mealName: string | null) => void;
+  plannedItem: Item | null;
+  allItems: Item[];
+  onAssignItem: (day: DayOfWeek, item: Item | null) => void;
 }
 
-const DayCard: FC<DayCardProps> = ({ day, plannedMeal, allMeals, onAssignMeal }) => {
+const DayCard: FC<DayCardProps> = ({ day, plannedItem, allItems, onAssignItem }) => {
+  const handleValueChange = (itemId: string) => {
+    if (itemId === "none" || itemId === "") {
+      onAssignItem(day, null);
+    } else {
+      const selectedItem = allItems.find(item => item.id === itemId);
+      onAssignItem(day, selectedItem || null);
+    }
+  };
+
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -26,29 +35,29 @@ const DayCard: FC<DayCardProps> = ({ day, plannedMeal, allMeals, onAssignMeal })
       </CardHeader>
       <CardContent className="flex-grow space-y-2">
         <Select
-          value={plannedMeal || ""}
-          onValueChange={(value) => onAssignMeal(day, value === "none" || value === "" ? null : value)}
+          value={plannedItem?.id || ""}
+          onValueChange={handleValueChange}
           className="day-card-select"
         >
-          <SelectTrigger aria-label={`Select meal for ${day}`} className="day-card-select-trigger">
-            <SelectValue placeholder="Select a meal..." />
+          <SelectTrigger aria-label={`Select item for ${day}`} className="day-card-select-trigger">
+            <SelectValue placeholder="Select an item..." />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">-- Not Planned --</SelectItem>
-            {allMeals.map((meal) => (
-              <SelectItem key={meal} value={meal}>
-                {meal}
+            {allItems.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.name} ({item.type})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {plannedMeal && (
+        {plannedItem && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onAssignMeal(day, null)}
+            onClick={() => onAssignItem(day, null)}
             className="w-full text-destructive hover:text-destructive button-no-print"
-            aria-label={`Clear meal for ${day}`}
+            aria-label={`Clear item for ${day}`}
           >
             <Trash2 className="mr-2 h-4 w-4" /> Clear
           </Button>

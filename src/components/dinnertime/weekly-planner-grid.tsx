@@ -1,25 +1,26 @@
+
 "use client";
 
 import type { FC } from 'react';
 import DayCard from './day-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DayOfWeek, WeeklyPlan } from '@/types';
+import type { DayOfWeek, WeeklyPlan, Item } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { NotebookText } from 'lucide-react';
 
 interface WeeklyPlannerGridProps {
   plan: WeeklyPlan;
-  allMeals: string[];
-  onUpdatePlan: (day: DayOfWeek, mealName: string | null) => void;
+  allItems: Item[];
+  onUpdatePlan: (day: DayOfWeek, item: Item | null) => void;
 }
 
-const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allMeals, onUpdatePlan }) => {
+const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdatePlan }) => {
   return (
     <Card className="shadow-xl">
       <CardHeader>
         <CardTitle className="font-headline text-3xl text-center flex items-center justify-center">
           <NotebookText className="mr-3 h-8 w-8 text-primary" />
-          Your Weekly Dinner Plan
+          Your Weekly Plan
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -28,9 +29,9 @@ const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allMeals, onUpdat
             <DayCard
               key={day}
               day={day}
-              plannedMeal={plan[day]}
-              allMeals={allMeals}
-              onAssignMeal={onUpdatePlan}
+              plannedItem={plan[day]}
+              allItems={allItems}
+              onAssignItem={onUpdatePlan}
             />
           ))}
         </div>
