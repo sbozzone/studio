@@ -47,7 +47,7 @@ export function getWeatherInfo(weatherCode: number): WeatherCodeInfo {
 }
 
 export async function fetchWeatherForecast(latitude: number, longitude: number): Promise<DailyWeather[] | null> {
-  const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(2)}&longitude=${longitude.toFixed(2)}&daily=weather_code,temperature_2m_max&timezone=auto&forecast_days=7`;
+  const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(2)}&longitude=${longitude.toFixed(2)}&daily=weather_code,temperature_2m_max&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`;
   try {
     const response = await fetch(apiUrl);
     if (!response.ok) {
@@ -74,3 +74,4 @@ export async function fetchWeatherForecast(latitude: number, longitude: number):
     return null;
   }
 }
+

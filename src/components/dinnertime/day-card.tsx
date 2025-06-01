@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, CalendarDays, StickyNote, Thermometer } from 'lucide-react'; // Added Thermometer
+import { Trash2, CalendarDays, StickyNote, Thermometer } from 'lucide-react';
 import type { DayOfWeek, Item, DayPlanData, DailyWeather } from '@/types';
 
 interface DayCardProps {
@@ -42,10 +42,10 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
             {day}
           </CardTitle>
           {dailyWeather && WeatherIcon && (
-            <div className="flex items-center text-sm text-muted-foreground" title={`${dailyWeather.maxTemp}°C - ${dailyWeather.description}`}>
+            <div className="flex items-center text-sm text-muted-foreground" title={`${dailyWeather.maxTemp}°F - ${dailyWeather.description}`}>
               <WeatherIcon className="mr-1 h-5 w-5" />
               <Thermometer className="mr-0.5 h-4 w-4 text-blue-500" />
-              <span>{dailyWeather.maxTemp}°C</span>
+              <span>{dailyWeather.maxTemp}°F</span>
             </div>
           )}
         </div>
