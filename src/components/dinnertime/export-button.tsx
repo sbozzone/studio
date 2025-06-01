@@ -4,24 +4,25 @@
 import type { FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import type { WeeklyPlan, Item } from '@/types'; // Item added
+import type { WeeklyPlan, Item, DayOfWeek } from '@/types'; 
 import { useToast } from '@/hooks/use-toast';
 
 interface ExportButtonProps {
   plan: WeeklyPlan;
-  items: Item[]; // Added to potentially list all available items if needed, though not used in current export logic
+  items: Item[]; 
+  orderedDays: DayOfWeek[]; // New prop for ordered days
 }
 
-const ExportButton: FC<ExportButtonProps> = ({ plan }) => {
+const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
   const { toast } = useToast();
 
   const handleExport = () => {
     let content = "DinnerTime - Weekly Plan\n\n";
-    Object.entries(plan).forEach(([day, item]) => {
+    orderedDays.forEach(day => { // Iterate over orderedDays
+      const item = plan[day];
       content += `${day}: ${item ? `${item.name} (${item.type})` : 'Not planned'}\n`;
     });
 
-    // Optionally add shopping list to export
     const itemsInPlan = Object.values(plan).filter(item => item !== null) as Item[];
     const itemCounts: Record<string, { count: number; type: string }> = {};
     itemsInPlan.forEach(item => {

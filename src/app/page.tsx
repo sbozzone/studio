@@ -14,8 +14,21 @@ import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, ItemType } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat } from 'lucide-react';
-import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion'; // Renamed flow
-import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation'; // Renamed flow
+import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
+import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
+
+const getRotatedDays = (): DayOfWeek[] => {
+  const todayIndex = new Date().getDay(); // 0 for Sunday, 1 for Monday...
+  // DAYS_OF_WEEK = ["Monday", "Tuesday", ..., "Sunday"]
+  // Map todayIndex (Sun=0, Mon=1) to startIndexInDaysOfWeek (Mon=0, Tue=1, ..., Sun=6)
+  const startIndexInDaysOfWeek = (todayIndex === 0) ? 6 : todayIndex - 1;
+
+  const rotatedDays = [
+    ...DAYS_OF_WEEK.slice(startIndexInDaysOfWeek),
+    ...DAYS_OF_WEEK.slice(0, startIndexInDaysOfWeek)
+  ];
+  return rotatedDays;
+};
 
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -33,9 +46,13 @@ export default function DinnerTimePage() {
   const [isLoadingVariations, setIsLoadingVariations] = useState(false);
   
   const [isClient, setIsClient] = useState(false);
+  const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
+
 
   useEffect(() => {
     setIsClient(true);
+    setOrderedDaysForDisplay(getRotatedDays());
+
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
     const storedFavorites = localStorage.getItem('dinnertime_favoriteItemIds');
@@ -76,6 +93,7 @@ export default function DinnerTimePage() {
     
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
+    // Iterate over canonical DAYS_OF_WEEK for data manipulation consistency
     for (const day of DAYS_OF_WEEK) {
       if (updatedPlan[day]?.id === itemIdToDelete) {
         updatedPlan[day] = null;
@@ -113,9 +131,8 @@ export default function DinnerTimePage() {
     }
     setIsLoadingSuggestions(true);
     try {
-      // Pass only item names to the AI for now
       const result = await suggestItemsAI({ mealList: items.map(item => item.name) });
-      setSuggestedAIItemNames(result.suggestedMeals); // AI output schema still uses suggestedMeals
+      setSuggestedAIItemNames(result.suggestedMeals); 
       if (result.suggestedMeals.length > 0) {
         toast({ title: "Suggestions Ready!", description: "Check out these item ideas." });
       } else {
@@ -133,7 +150,7 @@ export default function DinnerTimePage() {
     const newItem: Item = {
       id: crypto.randomUUID(),
       name: itemName,
-      type: itemType, // Defaulting to entree, or could be passed from CTA if UI is added there
+      type: itemType, 
     };
     handleAddItem(newItem);
   };
@@ -151,8 +168,8 @@ export default function DinnerTimePage() {
     try {
       const favoriteItemsForAI = items.filter(i => favoriteItemIds.includes(i.id));
       const result = await generateItemVariationsAI({
-        selectedMeal: selectedItemForVariation.name, // AI input schema still uses selectedMeal
-        favoriteMeals: favoriteItemsForAI.map(i => i.name), // AI input schema still uses favoriteMeals
+        selectedMeal: selectedItemForVariation.name, 
+        favoriteMeals: favoriteItemsForAI.map(i => i.name), 
       });
       setItemVariations(result.variations);
       if (result.variations.length > 0) {
@@ -210,11 +227,12 @@ export default function DinnerTimePage() {
             plan={weeklyPlan}
             allItems={items}
             onUpdatePlan={handleUpdatePlan}
+            orderedDays={orderedDaysForDisplay}
           />
           <ShoppingList plan={weeklyPlan} />
           <div className="flex flex-col sm:flex-row justify-end gap-2 non-printable-elements">
             <PrintButton />
-            <ExportButton plan={weeklyPlan} items={items} />
+            <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} />
           </div>
         </main>
       </div>
