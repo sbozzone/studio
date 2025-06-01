@@ -5,18 +5,19 @@ import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea'; // Added Textarea
-import { Trash2, CalendarDays, StickyNote } from 'lucide-react'; // Added StickyNote
-import type { DayOfWeek, Item, DayPlanData } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
+import { Trash2, CalendarDays, StickyNote, Thermometer } from 'lucide-react'; // Added Thermometer
+import type { DayOfWeek, Item, DayPlanData, DailyWeather } from '@/types';
 
 interface DayCardProps {
   day: DayOfWeek;
   dayData: DayPlanData;
   allItems: Item[];
   onUpdateDayData: (day: DayOfWeek, data: Partial<DayPlanData>) => void;
+  dailyWeather?: DailyWeather;
 }
 
-const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) => {
+const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, dailyWeather }) => {
   const handleItemSelectChange = (itemId: string) => {
     if (itemId === "none" || itemId === "") {
       onUpdateDayData(day, { item: null });
@@ -30,13 +31,24 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
     onUpdateDayData(day, { note: event.target.value });
   };
 
+  const WeatherIcon = dailyWeather ? dailyWeather.icon : null;
+
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <CardTitle className="font-headline text-xl flex items-center">
-           <CalendarDays className="mr-2 h-5 w-5 text-primary opacity-70" />
-          {day}
-        </CardTitle>
+        <div className="flex justify-between items-start">
+          <CardTitle className="font-headline text-xl flex items-center">
+            <CalendarDays className="mr-2 h-5 w-5 text-primary opacity-70" />
+            {day}
+          </CardTitle>
+          {dailyWeather && WeatherIcon && (
+            <div className="flex items-center text-sm text-muted-foreground" title={`${dailyWeather.maxTemp}°C - ${dailyWeather.description}`}>
+              <WeatherIcon className="mr-1 h-5 w-5" />
+              <Thermometer className="mr-0.5 h-4 w-4 text-blue-500" />
+              <span>{dailyWeather.maxTemp}°C</span>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="flex-grow space-y-3">
         <div>

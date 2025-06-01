@@ -13,11 +13,12 @@ import ShoppingList from '@/components/dinnertime/shopping-list';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData } from '@/types';
+import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat } from 'lucide-react';
 import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
 import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
+import { fetchWeatherForecast } from '@/lib/weather-utils';
 
 const getRotatedDays = (): DayOfWeek[] => {
   const todayIndex = new Date().getDay(); // 0 for Sunday, 1 for Monday...
@@ -50,6 +51,11 @@ export default function DinnerTimePage() {
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
 
+  const [weatherForecast, setWeatherForecast] = useState<DailyWeather[] | null>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+
+  const { toast } = useToast();
+
   useEffect(() => {
     setIsClient(true);
     setOrderedDaysForDisplay(getRotatedDays());
@@ -69,9 +75,9 @@ export default function DinnerTimePage() {
         const parsedPlan = JSON.parse(storedPlan);
         const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
           const dayData = parsedPlan[day];
-          if (dayData === null || (dayData && dayData.hasOwnProperty('id') && !dayData.hasOwnProperty('item'))) { // Old structure: Item or null
+          if (dayData === null || (dayData && dayData.hasOwnProperty('id') && !dayData.hasOwnProperty('item'))) {
             acc[day] = { item: dayData as Item | null, note: '' };
-          } else if (dayData && dayData.hasOwnProperty('item')) { // New structure already
+          } else if (dayData && dayData.hasOwnProperty('item')) {
             acc[day] = {item: dayData.item, note: dayData.note || ''};
           } else { 
             acc[day] = { item: null, note: '' };
@@ -86,7 +92,31 @@ export default function DinnerTimePage() {
     } else {
       setWeeklyPlan(initialWeeklyPlan);
     }
-  }, []);
+
+    // Fetch weather
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          const forecast = await fetchWeatherForecast(latitude, longitude);
+          setWeatherForecast(forecast);
+          setIsLoadingWeather(false);
+          if (!forecast) {
+            toast({ title: "Weather Update", description: "Could not fetch weather data.", variant: "destructive" });
+          }
+        },
+        (error) => {
+          console.error("Error getting geolocation:", error);
+          setIsLoadingWeather(false);
+          toast({ title: "Location Error", description: "Could not get location for weather. Please ensure location services are enabled.", variant: "destructive" });
+        }
+      );
+    } else {
+      setIsLoadingWeather(false);
+      toast({ title: "Location Error", description: "Geolocation is not supported by this browser.", variant: "destructive" });
+    }
+
+  }, [toast]); // Added toast to dependency array
 
   useEffect(() => {
     if(isClient) localStorage.setItem('dinnertime_familyName', familyName);
@@ -104,7 +134,6 @@ export default function DinnerTimePage() {
     if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
   }, [weeklyPlan, isClient]);
 
-  const { toast } = useToast();
 
   const handleAddItem = (newItem: Item) => {
     if (!items.some(item => item.name === newItem.name && item.type === newItem.type)) {
@@ -278,6 +307,8 @@ export default function DinnerTimePage() {
             allItems={items}
             onUpdateDayData={handleUpdateDayInPlan}
             orderedDays={orderedDaysForDisplay}
+            weatherForecast={weatherForecast}
+            isLoadingWeather={isLoadingWeather}
           />
           <ShoppingList plan={weeklyPlan} />
           <div className="flex flex-col sm:flex-row justify-end gap-2 non-printable-elements">
