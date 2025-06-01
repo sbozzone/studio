@@ -6,11 +6,14 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react'; // Renamed to avoid conflict
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ArrowLeft, Settings as SettingsIcon, Edit3 } from 'lucide-react';
+
+const DEFAULT_SUBTITLE = "Plan your weekly entrees and sides with appetite and comfort.";
 
 export default function SettingsPage() {
   const [familyName, setFamilyName] = useState<string>('');
+  const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -21,6 +24,13 @@ export default function SettingsPage() {
     } else {
       setFamilyName('My'); // Default if nothing is stored
     }
+
+    const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
+    if (storedSubtitle) {
+      setCustomSubtitle(storedSubtitle);
+    } else {
+      setCustomSubtitle(DEFAULT_SUBTITLE);
+    }
   }, []);
 
   useEffect(() => {
@@ -29,8 +39,18 @@ export default function SettingsPage() {
     }
   }, [familyName, isClient]);
 
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('dinnertime_customSubtitle', customSubtitle);
+    }
+  }, [customSubtitle, isClient]);
+
   const handleFamilyNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFamilyName(event.target.value);
+  };
+
+  const handleSubtitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomSubtitle(event.target.value);
   };
 
   if (!isClient) {
@@ -57,20 +77,38 @@ export default function SettingsPage() {
       <main className="w-full max-w-md space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Planner Title</CardTitle>
+            <CardTitle className="font-headline text-2xl flex items-center">
+                <Edit3 className="mr-2 h-5 w-5 opacity-70" />
+                Planner Customization
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="familyName">Family Name for Planner Title</Label>
-            <Input
-              id="familyName"
-              type="text"
-              value={familyName}
-              onChange={handleFamilyNameChange}
-              placeholder="E.g., Smith"
-            />
-            <p className="text-xs text-muted-foreground">
-              This name will be used in the title, like &quot;{familyName ? familyName + "'s" : "My"} DinnerTime&quot;.
-            </p>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="familyName">Family Name for Planner Title</Label>
+              <Input
+                id="familyName"
+                type="text"
+                value={familyName}
+                onChange={handleFamilyNameChange}
+                placeholder="E.g., Smith"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This name will be used in the title, like &quot;{familyName ? familyName + "'s" : "My"} DinnerTime&quot;.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="customSubtitle">Planner Subtitle</Label>
+              <Input
+                id="customSubtitle"
+                type="text"
+                value={customSubtitle}
+                onChange={handleSubtitleChange}
+                placeholder="Enter your custom subtitle"
+              />
+               <p className="text-xs text-muted-foreground mt-1">
+                This text appears below the main planner title.
+              </p>
+            </div>
           </CardContent>
         </Card>
         

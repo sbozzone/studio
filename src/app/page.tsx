@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
-import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form'; // New Import
+import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
 import SmartSuggestionCTA from '@/components/dinnertime/smart-suggestion-cta';
 import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog';
@@ -35,11 +35,14 @@ const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
   return acc;
 }, {} as WeeklyPlan);
 
+const DEFAULT_SUBTITLE = "Plan your weekly entrees and sides with appetite and comfort.";
+
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]);
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
   const [familyName, setFamilyName] = useState<string>('My');
+  const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
 
   const [suggestedAIItemNames, setSuggestedAIItemNames] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -66,6 +69,10 @@ export default function DinnerTimePage() {
     const storedFamilyName = localStorage.getItem('dinnertime_familyName');
     if (storedFamilyName) setFamilyName(storedFamilyName);
     else setFamilyName('My');
+
+    const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
+    if (storedSubtitle) setCustomSubtitle(storedSubtitle);
+    else setCustomSubtitle(DEFAULT_SUBTITLE);
 
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
@@ -125,10 +132,10 @@ export default function DinnerTimePage() {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'dinnertime_familyName' && event.newValue !== null) {
-        setFamilyName(event.newValue);
-      } else if (event.key === 'dinnertime_familyName' && event.newValue === null) {
-        setFamilyName('My');
+      if (event.key === 'dinnertime_familyName') {
+        setFamilyName(event.newValue !== null ? event.newValue : 'My');
+      } else if (event.key === 'dinnertime_customSubtitle') {
+        setCustomSubtitle(event.newValue !== null ? event.newValue : DEFAULT_SUBTITLE);
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -324,7 +331,7 @@ export default function DinnerTimePage() {
             {familyName ? familyName + "'s" : "My"} DinnerTime
           </h1>
         </div>
-        <p className="text-lg text-muted-foreground mt-2">Plan your weekly entrees and sides with appetite and comfort.</p>
+        <p className="text-lg text-muted-foreground mt-2">{customSubtitle}</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8">
