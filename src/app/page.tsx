@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,6 +8,8 @@ import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
 import SmartSuggestionCTA from '@/components/dinnertime/smart-suggestion-cta';
 import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog';
 import ExportButton from '@/components/dinnertime/export-button';
+import PrintButton from '@/components/dinnertime/print-button'; // New Import
+import ShoppingList from '@/components/dinnertime/shopping-list'; // New Import
 import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
@@ -149,7 +152,7 @@ export default function DinnerTimePage() {
   
   if (!isClient) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-screen non-printable-elements">
         <ChefHat className="h-12 w-12 animate-spin text-primary" />
         <p className="ml-4 text-xl font-headline">Loading DinnerTime...</p>
       </div>
@@ -158,7 +161,7 @@ export default function DinnerTimePage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <header className="text-center py-8">
+      <header className="text-center py-8 non-printable-elements">
         <h1 className="text-5xl md:text-6xl font-headline text-primary flex items-center justify-center">
           <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16" />
           DinnerTime
@@ -184,13 +187,15 @@ export default function DinnerTimePage() {
           />
         </aside>
 
-        <main className="lg:col-span-2 space-y-6">
+        <main id="printable-area" className="lg:col-span-2 space-y-6">
           <WeeklyPlannerGrid
             plan={weeklyPlan}
             allMeals={meals}
             onUpdatePlan={handleUpdatePlan}
           />
-          <div className="flex justify-end">
+          <ShoppingList plan={weeklyPlan} />
+          <div className="flex flex-col sm:flex-row justify-end gap-2 non-printable-elements">
+            <PrintButton />
             <ExportButton plan={weeklyPlan} />
           </div>
         </main>
@@ -204,6 +209,7 @@ export default function DinnerTimePage() {
         onGenerateVariations={handleGenerateVariations}
         variations={mealVariations}
         isLoading={isLoadingVariations}
+        className="non-printable-elements"
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -27,8 +28,9 @@ const DayCard: FC<DayCardProps> = ({ day, plannedMeal, allMeals, onAssignMeal })
         <Select
           value={plannedMeal || ""}
           onValueChange={(value) => onAssignMeal(day, value === "none" || value === "" ? null : value)}
+          className="day-card-select"
         >
-          <SelectTrigger aria-label={`Select meal for ${day}`}>
+          <SelectTrigger aria-label={`Select meal for ${day}`} className="day-card-select-trigger">
             <SelectValue placeholder="Select a meal..." />
           </SelectTrigger>
           <SelectContent>
@@ -45,7 +47,7 @@ const DayCard: FC<DayCardProps> = ({ day, plannedMeal, allMeals, onAssignMeal })
             variant="ghost"
             size="sm"
             onClick={() => onAssignMeal(day, null)}
-            className="w-full text-destructive hover:text-destructive"
+            className="w-full text-destructive hover:text-destructive button-no-print"
             aria-label={`Clear meal for ${day}`}
           >
             <Trash2 className="mr-2 h-4 w-4" /> Clear

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -70,4 +71,131 @@ body {
   .font-headline {
     font-family: 'Belleza', sans-serif;
   }
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    background-color: #fff !important;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+  }
+
+  /* Hide elements not intended for printing */
+  header.non-printable-elements,
+  .lg\:col-span-1, /* The entire aside/sidebar */
+  .non-printable-elements, /* Generic class for buttons, dialogs, etc. */
+  dialog, /* All dialogs */
+  .toaster, /* Toasts */
+  [data-radix-popper-content-wrapper] /* Popovers, tooltips, etc. */
+   {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure the printable area takes full width and is visible */
+  #printable-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-column: 1 / -1 !important; /* Force full span if parent is grid */
+    margin: 0 !important;
+    padding: 1rem !important;
+    box-shadow: none !important;
+    border: none !important;
+    background-color: #fff !important;
+  }
+  
+  html, body {
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Printable area specific card styling */
+  #printable-area .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid;
+    margin-bottom: 1rem;
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+  #printable-area .card-header, 
+  #printable-area .card-content {
+    padding: 0.75rem !important;
+    color: #000 !important;
+  }
+  #printable-area .card-title {
+    font-size: 1.1rem !important;
+    color: #000 !important;
+  }
+   #printable-area .card-title svg {
+    color: hsl(var(--primary)) !important; /* Use primary color for icons in titles */
+    fill: hsl(var(--primary)) !important; /* For filled icons if any */
+   }
+
+  /* Hide specific buttons within cards in the printable area */
+  #printable-area .button-no-print {
+     display:none !important;
+     visibility: hidden !important;
+  }
+  
+  /* For DayCard: make select look like static text */
+  #printable-area .day-card-select .day-card-select-trigger {
+    border: none !important;
+    padding: 0.25rem 0 !important;
+    background: transparent !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    box-shadow: none !important;
+    color: #000 !important;
+    height: auto !important; /* Ensure height is not fixed by shadcn styles */
+    min-height: 1.5rem; /* Ensure some min height */
+    text-align: left; /* Ensure text alignment */
+  }
+  #printable-area .day-card-select .day-card-select-trigger span {
+    line-height: 1.2; /* Adjust line height if needed */
+  }
+  #printable-area .day-card-select .day-card-select-trigger span[data-placeholder] {
+    color: #555 !important; 
+    font-style: italic;
+  }
+  #printable-area .day-card-select .day-card-select-trigger > svg { /* Hide dropdown arrow */
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* For ShoppingList, ensure list items are clean */
+  #printable-area .shopping-list-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 0.9rem;
+    color: #000 !important;
+  }
+  #printable-area .shopping-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  #printable-area .text-muted-foreground {
+      color: #555 !important;
+  }
+  #printable-area .font-headline {
+    color: #000 !important; /* Ensure headlines are black */
+  }
+  #printable-area .text-primary {
+      color: hsl(var(--primary)) !important; /* Keep primary color for text if desired */
+  }
+  #printable-area p, #printable-area li, #printable-area span, #printable-area div {
+    color: #000 !important; /* General text color */
+  }
+  #printable-area .text-primary, #printable-area svg.text-primary {
+      color: hsl(var(--primary)) !important;
+      fill: hsl(var(--primary)) !important;
+  }
+   #printable-area .text-destructive {
+       color: #B91C1C !important; /* A dark red for destructive text for print */
+   }
 }
