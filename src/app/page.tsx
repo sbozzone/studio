@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link'; // Added for settings link
+import Link from 'next/link';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
@@ -11,18 +11,17 @@ import VariationGeneratorDialog from '@/components/dinnertime/variation-generato
 import ExportButton from '@/components/dinnertime/export-button';
 import PrintButton from '@/components/dinnertime/print-button';
 import ShoppingList from '@/components/dinnertime/shopping-list';
-// Input and Label removed as they are no longer used directly for familyName here
-import { Button } from '@/components/ui/button'; // For Settings Button
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather } from '@/types';
+import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
-import { ChefHat, Settings } from 'lucide-react'; // Added Settings
+import { ChefHat, Settings } from 'lucide-react';
 import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
 import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
 import { fetchWeatherForecast } from '@/lib/weather-utils';
 
 const getRotatedDays = (): DayOfWeek[] => {
-  const todayIndex = new Date().getDay(); // 0 for Sunday, 1 for Monday...
+  const todayIndex = new Date().getDay();
   const startIndexInDaysOfWeek = (todayIndex === 0) ? 6 : todayIndex - 1;
   return [
     ...DAYS_OF_WEEK.slice(startIndexInDaysOfWeek),
@@ -39,7 +38,7 @@ export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]);
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
-  const [familyName, setFamilyName] = useState<string>('My'); // Still needed for display
+  const [familyName, setFamilyName] = useState<string>('My');
 
   const [suggestedAIItemNames, setSuggestedAIItemNames] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -55,19 +54,17 @@ export default function DinnerTimePage() {
   const [weatherForecast, setWeatherForecast] = useState<DailyWeather[] | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
 
+  const [manualGroceryItems, setManualGroceryItems] = useState<ManualGroceryItem[]>([]);
+
   const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
     setOrderedDaysForDisplay(getRotatedDays());
 
-    // Load family name from localStorage for display
     const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-    if (storedFamilyName) {
-        setFamilyName(storedFamilyName);
-    } else {
-        setFamilyName('My'); // Default if not set
-    }
+    if (storedFamilyName) setFamilyName(storedFamilyName);
+    else setFamilyName('My');
 
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
@@ -99,6 +96,9 @@ export default function DinnerTimePage() {
       setWeeklyPlan(initialWeeklyPlan);
     }
 
+    const storedManualGroceryItems = localStorage.getItem('dinnertime_manualGroceryItems');
+    if (storedManualGroceryItems) setManualGroceryItems(JSON.parse(storedManualGroceryItems));
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -122,24 +122,19 @@ export default function DinnerTimePage() {
     }
   }, [toast]);
 
-  // This useEffect listens for storage changes to update familyName if changed on another page/tab
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'dinnertime_familyName' && event.newValue !== null) {
         setFamilyName(event.newValue);
       } else if (event.key === 'dinnertime_familyName' && event.newValue === null) {
-        setFamilyName('My'); // Reset to default if cleared
+        setFamilyName('My');
       }
     };
-
     window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
-
-  // Removed useEffect for saving familyName from this page. It's now handled in /settings
 
   useEffect(() => {
     if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
@@ -153,6 +148,9 @@ export default function DinnerTimePage() {
     if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
   }, [weeklyPlan, isClient]);
 
+  useEffect(() => {
+    if(isClient) localStorage.setItem('dinnertime_manualGroceryItems', JSON.stringify(manualGroceryItems));
+  }, [manualGroceryItems, isClient]);
 
   const handleAddItem = (newItem: Item) => {
     if (!items.some(item => item.name === newItem.name && item.type === newItem.type)) {
@@ -166,10 +164,8 @@ export default function DinnerTimePage() {
   const handleDeleteItem = (itemIdToDelete: string) => {
     const itemToDelete = items.find(i => i.id === itemIdToDelete);
     if (!itemToDelete) return;
-
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
     setFavoriteItemIds(prev => prev.filter(id => id !== itemIdToDelete));
-    
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
     for (const day of DAYS_OF_WEEK) {
@@ -185,7 +181,6 @@ export default function DinnerTimePage() {
   const handleToggleFavoriteItem = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-
     const isCurrentlyFavorite = favoriteItemIds.includes(itemId);
     setFavoriteItemIds((prev) =>
       isCurrentlyFavorite
@@ -207,7 +202,6 @@ export default function DinnerTimePage() {
       }
     }));
   }, []);
-
 
   const handleGetSuggestions = async () => {
     if (items.length === 0) {
@@ -268,6 +262,24 @@ export default function DinnerTimePage() {
       setIsLoadingVariations(false);
     }
   };
+
+  const handleAddManualGroceryItem = (name: string) => {
+    if (name.trim() === '') {
+      toast({ title: "Cannot Add Empty Item", description: "Please enter a name for the grocery item.", variant: "destructive" });
+      return;
+    }
+    const newItem: ManualGroceryItem = { id: crypto.randomUUID(), name: name.trim() };
+    setManualGroceryItems(prev => [...prev, newItem]);
+    toast({ title: "Grocery Item Added", description: `"${name.trim()}" added to your shopping list.` });
+  };
+
+  const handleDeleteManualGroceryItem = (id: string) => {
+    const itemToDelete = manualGroceryItems.find(item => item.id === id);
+    setManualGroceryItems(prev => prev.filter(item => item.id !== id));
+    if (itemToDelete) {
+        toast({ title: "Grocery Item Removed", description: `"${itemToDelete.name}" removed from your shopping list.` });
+    }
+  };
   
   if (!isClient) {
     return (
@@ -288,7 +300,6 @@ export default function DinnerTimePage() {
           </h1>
         </div>
         <p className="text-lg text-muted-foreground mt-2">Plan your weekly entrees and sides with appetite and comfort.</p>
-         {/* Family name input removed from here */}
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -318,7 +329,12 @@ export default function DinnerTimePage() {
             weatherForecast={weatherForecast}
             isLoadingWeather={isLoadingWeather}
           />
-          <ShoppingList plan={weeklyPlan} />
+          <ShoppingList
+            plan={weeklyPlan}
+            manualItems={manualGroceryItems}
+            onAddManualItem={handleAddManualGroceryItem}
+            onDeleteManualItem={handleDeleteManualGroceryItem}
+          />
           <div className="flex flex-col sm:flex-row justify-end items-center gap-2 non-printable-elements">
             <Link href="/settings" passHref>
               <Button variant="outline" size="icon" aria-label="Settings" className="w-full sm:w-auto">
@@ -326,7 +342,7 @@ export default function DinnerTimePage() {
               </Button>
             </Link>
             <PrintButton />
-            <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} />
+            <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} manualGroceryItems={manualGroceryItems} />
           </div>
         </main>
       </div>

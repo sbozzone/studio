@@ -4,20 +4,22 @@
 import type { FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import type { WeeklyPlan, Item, DayOfWeek, DayPlanData } from '@/types'; 
+import type { WeeklyPlan, Item, DayOfWeek, DayPlanData, ManualGroceryItem } from '@/types'; 
 import { useToast } from '@/hooks/use-toast';
 
 interface ExportButtonProps {
   plan: WeeklyPlan;
   items: Item[]; 
   orderedDays: DayOfWeek[];
+  manualGroceryItems: ManualGroceryItem[];
 }
 
-const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
+const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays, manualGroceryItems }) => {
   const { toast } = useToast();
 
   const handleExport = () => {
-    let content = "DinnerTime - Weekly Plan\n\n";
+    let content = "DinnerTime - Weekly Plan & Shopping List\n\n";
+    content += "== Weekly Plan ==\n";
     orderedDays.forEach(day => {
       const dayPlan: DayPlanData = plan[day];
       const itemText = dayPlan.item ? `${dayPlan.item.name} (${dayPlan.item.type})` : 'Not planned';
@@ -27,6 +29,8 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
       }
     });
 
+    content += "\n== Shopping List ==\n";
+    
     const itemsInPlan = Object.values(plan)
                             .map((dayData: DayPlanData) => dayData.item)
                             .filter(item => item !== null) as Item[];
@@ -48,11 +52,24 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays }) => {
       .sort((a, b) => a.displayText.localeCompare(b.displayText));
 
     if (uniqueItemsWithCounts.length > 0) {
-      content += "\n\nShopping List:\n";
+      content += "From Plan:\n";
       uniqueItemsWithCounts.forEach(item => {
         content += `- ${item.displayText} ${item.count > 1 ? `(x${item.count})` : ''}\n`;
       });
     }
+
+    if (manualGroceryItems.length > 0) {
+      if (uniqueItemsWithCounts.length > 0) content += "\n"; // Add space if planned items exist
+      content += "Manual Additions:\n";
+      manualGroceryItems.forEach(item => {
+        content += `- ${item.name}\n`;
+      });
+    }
+
+    if (uniqueItemsWithCounts.length === 0 && manualGroceryItems.length === 0) {
+      content += "No items in shopping list.\n";
+    }
+
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const link = document.createElement('a');

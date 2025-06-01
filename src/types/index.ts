@@ -38,3 +38,9 @@ export interface ApiWeatherResponse {
   longitude: number;
   daily: ApiWeatherResponseDaily;
 }
+
+// Manual Grocery Item
+export interface ManualGroceryItem {
+  id: string;
+  name: string;
+}

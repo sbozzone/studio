@@ -123,10 +123,15 @@ body {
     color: #000 !important;
   }
   #printable-area .card-header, 
-  #printable-area .card-content {
+  #printable-area .card-content,
+  #printable-area .card-footer {
     padding: 0.75rem !important;
     color: #000 !important;
+    border-top: 1px solid #eee !important; /* for footer on print */
   }
+   #printable-area .card-header {
+     border-top: none !important;
+   }
   #printable-area .card-title {
     font-size: 1.1rem !important;
     color: #000 !important;
@@ -208,6 +213,13 @@ body {
   }
   #printable-area .shopping-list-item:last-child {
     border-bottom: none;
+  }
+  #printable-area .manual-grocery-item { /* Specifically for manual items if needed */
+     /* any specific print styles for manual items if different from general shopping-list-item */
+  }
+  #printable-area .shopping-list-item .button-no-print { /* Ensure delete buttons in list are hidden */
+    display: none !important;
+    visibility: hidden !important;
   }
   
   #printable-area .text-muted-foreground {
