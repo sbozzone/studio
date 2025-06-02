@@ -6,7 +6,6 @@ import Link from 'next/link';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
-import SmartSuggestionCTA from '@/components/dinnertime/smart-suggestion-cta';
 import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog';
 import ExportButton from '@/components/dinnertime/export-button';
 import PrintButton from '@/components/dinnertime/print-button';
@@ -16,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat, Settings } from 'lucide-react';
-import { suggestMeals as suggestItemsAI } from '@/ai/flows/smart-suggestion';
 import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
 import { fetchWeatherForecast } from '@/lib/weather-utils';
 
@@ -42,9 +40,6 @@ export default function DinnerTimePage() {
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
   const [familyName, setFamilyName] = useState<string>('My');
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
-
-  const [suggestedAIItemNames, setSuggestedAIItemNames] = useState<string[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const [selectedItemForVariation, setSelectedItemForVariation] = useState<Item | null>(null);
   const [isVariationDialogOpen, setIsVariationDialogOpen] = useState(false);
@@ -257,37 +252,6 @@ export default function DinnerTimePage() {
     }));
   }, []);
 
-  const handleGetSuggestions = async () => {
-    if (items.length === 0) {
-      toast({ title: "No Items", description: "Add some items first to get suggestions.", variant: "destructive" });
-      return;
-    }
-    setIsLoadingSuggestions(true);
-    try {
-      const result = await suggestItemsAI({ mealList: items.map(item => item.name) });
-      setSuggestedAIItemNames(result.suggestedMeals); 
-      if (result.suggestedMeals.length > 0) {
-        toast({ title: "Suggestions Ready!", description: "Check out these item ideas." });
-      } else {
-        toast({ title: "No Suggestions Found", description: "Couldn't find any suggestions right now." });
-      }
-    } catch (error) {
-      console.error("Error getting suggestions:", error);
-      toast({ title: "Error", description: "Could not fetch item suggestions.", variant: "destructive" });
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
-  
-  const handleAddSuggestedItem = (itemName: string, itemType: ItemType = 'entree') => {
-    const newItem: Item = {
-      id: crypto.randomUUID(),
-      name: itemName,
-      type: itemType, 
-    };
-    handleAddItem(newItem);
-  };
-
   const handleSelectForVariation = (item: Item) => {
     setSelectedItemForVariation(item);
     setItemVariations([]);
@@ -365,12 +329,6 @@ export default function DinnerTimePage() {
             onToggleFavorite={handleToggleFavoriteItem}
             onSelectForVariation={handleSelectForVariation}
             onDeleteItem={handleDeleteItem}
-          />
-          <SmartSuggestionCTA
-            onGetSuggestions={handleGetSuggestions}
-            suggestions={suggestedAIItemNames}
-            isLoading={isLoadingSuggestions}
-            onAddSuggestedItem={handleAddSuggestedItem}
           />
         </aside>
 
