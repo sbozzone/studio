@@ -10,14 +10,11 @@ import type { Item } from '@/types';
 
 interface ItemListDisplayProps {
   items: Item[];
-  favoriteItemIds: string[];
-  onToggleFavorite: (itemId: string) => void;
-  onSelectForVariation: (item: Item) => void;
   onDeleteItem: (itemId: string) => void;
-  onEditItemName: (itemId: string, newName: string) => void; // New prop
+  onEditItemName: (itemId: string, newName: string) => void;
 }
 
-const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, favoriteItemIds, onToggleFavorite, onSelectForVariation, onDeleteItem, onEditItemName }) => {
+const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, onDeleteItem, onEditItemName }) => {
   return (
     <Card>
       <CardHeader>
@@ -36,11 +33,8 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, favoriteItemIds, onT
                 <ItemCard
                   key={item.id}
                   item={item}
-                  isFavorite={favoriteItemIds.includes(item.id)}
-                  onToggleFavorite={onToggleFavorite}
-                  onSelectForVariation={onSelectForVariation}
                   onDeleteItem={onDeleteItem}
-                  onEditItemName={onEditItemName} // Pass down the new prop
+                  onEditItemName={onEditItemName}
                 />
               ))}
             </div>

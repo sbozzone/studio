@@ -7,36 +7,33 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Star, Lightbulb, Trash2, Drumstick, Carrot, Pencil, Save, XCircle } from 'lucide-react';
+import { Trash2, Drumstick, Carrot, Pencil, Save, XCircle } from 'lucide-react';
 import type { Item } from '@/types';
 
 interface ItemCardProps {
   item: Item;
-  isFavorite: boolean;
-  onToggleFavorite: (itemId: string) => void;
-  onSelectForVariation: (item: Item) => void;
   onDeleteItem?: (itemId: string) => void;
-  onEditItemName: (itemId: string, newName: string) => void; // New prop
+  onEditItemName: (itemId: string, newName: string) => void;
 }
 
-const ItemCard: FC<ItemCardProps> = ({ item, isFavorite, onToggleFavorite, onSelectForVariation, onDeleteItem, onEditItemName }) => {
+const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => {
   const Icon = item.type === 'entree' ? Drumstick : Carrot;
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(item.name);
 
   useEffect(() => {
-    setEditedName(item.name); // Reset editedName if item.name changes from parent
-    setIsEditing(false); // Also exit editing mode if item prop changes (e.g., deletion/re-render)
+    setEditedName(item.name);
+    setIsEditing(false); 
   }, [item.name, item.id]);
 
 
   const handleEdit = () => {
-    setEditedName(item.name); // Ensure input starts with current name
+    setEditedName(item.name); 
     setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
-    setEditedName(item.name); // Revert to original name
+    setEditedName(item.name); 
     setIsEditing(false);
   };
 
@@ -96,15 +93,7 @@ const ItemCard: FC<ItemCardProps> = ({ item, isFavorite, onToggleFavorite, onSel
           </>
         ) : (
           <>
-            <Button variant="outline" onClick={() => onToggleFavorite(item.id)} className="flex-grow">
-              <Star className={`mr-2 h-5 w-5 ${isFavorite ? 'fill-yellow-400 text-yellow-500' : 'text-muted-foreground'}`} />
-              {isFavorite ? 'Unfavorite' : 'Favorite'}
-            </Button>
-            <Button variant="outline" onClick={() => onSelectForVariation(item)} className="flex-grow">
-              <Lightbulb className="mr-2 h-5 w-5 text-accent" />
-              Variations
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit item name">
+            <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit item name" className="ml-auto">
               <Pencil className="h-5 w-5 text-muted-foreground hover:text-accent" />
             </Button>
             {onDeleteItem && (

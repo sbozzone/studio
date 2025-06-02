@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
-import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog';
+// import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog'; // Removed
 import ExportButton from '@/components/dinnertime/export-button';
 import PrintButton from '@/components/dinnertime/print-button';
 import ShoppingList from '@/components/dinnertime/shopping-list';
@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, ItemType, DayPlanData, DailyWeather, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat, Settings } from 'lucide-react';
-import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation';
+// import { generateMealVariations as generateItemVariationsAI } from '@/ai/flows/variation-generation'; // Removed
 import { fetchWeatherForecast } from '@/lib/weather-utils';
 
 const getRotatedDays = (): DayOfWeek[] => {
@@ -36,15 +36,15 @@ const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]);
+  // const [favoriteItemIds, setFavoriteItemIds] = useState<string[]>([]); // Removed
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
   const [familyName, setFamilyName] = useState<string>('My');
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
 
-  const [selectedItemForVariation, setSelectedItemForVariation] = useState<Item | null>(null);
-  const [isVariationDialogOpen, setIsVariationDialogOpen] = useState(false);
-  const [itemVariations, setItemVariations] = useState<string[]>([]);
-  const [isLoadingVariations, setIsLoadingVariations] = useState(false);
+  // const [selectedItemForVariation, setSelectedItemForVariation] = useState<Item | null>(null); // Removed
+  // const [isVariationDialogOpen, setIsVariationDialogOpen] = useState(false); // Removed
+  // const [itemVariations, setItemVariations] = useState<string[]>([]); // Removed
+  // const [isLoadingVariations, setIsLoadingVariations] = useState(false); // Removed
   
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
@@ -71,8 +71,8 @@ export default function DinnerTimePage() {
     const storedItems = localStorage.getItem('dinnertime_items');
     if (storedItems) setItems(JSON.parse(storedItems));
     
-    const storedFavorites = localStorage.getItem('dinnertime_favoriteItemIds');
-    if (storedFavorites) setFavoriteItemIds(JSON.parse(storedFavorites));
+    // const storedFavorites = localStorage.getItem('dinnertime_favoriteItemIds'); // Removed
+    // if (storedFavorites) setFavoriteItemIds(JSON.parse(storedFavorites)); // Removed
     
     const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
     if (storedPlan) {
@@ -173,9 +173,9 @@ export default function DinnerTimePage() {
     if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
   }, [items, isClient]);
 
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_favoriteItemIds', JSON.stringify(favoriteItemIds));
-  }, [favoriteItemIds, isClient]);
+  // useEffect(() => { // Removed favoriteItemIds persistence
+  //   if(isClient) localStorage.setItem('dinnertime_favoriteItemIds', JSON.stringify(favoriteItemIds));
+  // }, [favoriteItemIds, isClient]);
 
   useEffect(() => {
     if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
@@ -254,7 +254,7 @@ export default function DinnerTimePage() {
     const itemToDelete = items.find(i => i.id === itemIdToDelete);
     if (!itemToDelete) return;
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
-    setFavoriteItemIds(prev => prev.filter(id => id !== itemIdToDelete));
+    // setFavoriteItemIds(prev => prev.filter(id => id !== itemIdToDelete)); // Removed
     
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
@@ -285,20 +285,20 @@ export default function DinnerTimePage() {
     toast({ title: "Item Deleted", description: `"${itemToDelete.name}" has been removed.`});
   };
 
-  const handleToggleFavoriteItem = (itemId: string) => {
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-    const isCurrentlyFavorite = favoriteItemIds.includes(itemId);
-    setFavoriteItemIds((prev) =>
-      isCurrentlyFavorite
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId]
-    );
-    toast({
-      title: isCurrentlyFavorite ? "Unfavorited" : "Favorited!",
-      description: `"${item.name}" has been ${isCurrentlyFavorite ? 'removed from' : 'added to'} favorites.`,
-    });
-  };
+  // const handleToggleFavoriteItem = (itemId: string) => { // Removed
+  //   const item = items.find(i => i.id === itemId);
+  //   if (!item) return;
+  //   const isCurrentlyFavorite = favoriteItemIds.includes(itemId);
+  //   setFavoriteItemIds((prev) =>
+  //     isCurrentlyFavorite
+  //       ? prev.filter((id) => id !== itemId)
+  //       : [...prev, itemId]
+  //   );
+  //   toast({
+  //     title: isCurrentlyFavorite ? "Unfavorited" : "Favorited!",
+  //     description: `"${item.name}" has been ${isCurrentlyFavorite ? 'removed from' : 'added to'} favorites.`,
+  //   });
+  // };
 
   const handleUpdateDayInPlan = useCallback((day: DayOfWeek, newDayData: Partial<DayPlanData>) => {
     setWeeklyPlan(prev => ({
@@ -310,34 +310,34 @@ export default function DinnerTimePage() {
     }));
   }, []);
 
-  const handleSelectForVariation = (item: Item) => {
-    setSelectedItemForVariation(item);
-    setItemVariations([]);
-    setIsVariationDialogOpen(true);
-  };
+  // const handleSelectForVariation = (item: Item) => { // Removed
+  //   setSelectedItemForVariation(item);
+  //   setItemVariations([]);
+  //   setIsVariationDialogOpen(true);
+  // };
 
-  const handleGenerateVariations = async () => {
-    if (!selectedItemForVariation) return;
-    setIsLoadingVariations(true);
-    try {
-      const favoriteItemsForAI = items.filter(i => favoriteItemIds.includes(i.id));
-      const result = await generateItemVariationsAI({
-        selectedMeal: selectedItemForVariation.name, 
-        favoriteMeals: favoriteItemsForAI.map(i => i.name), 
-      });
-      setItemVariations(result.variations);
-      if (result.variations.length > 0) {
-        toast({ title: "Variations Generated!", description: `New ideas for "${selectedItemForVariation.name}" are ready.` });
-      } else {
-        toast({ title: "No Variations Found", description: `Couldn't find variations for "${selectedItemForVariation.name}".` });
-      }
-    } catch (error) {
-      console.error("Error generating variations:", error);
-      toast({ title: "Error", description: "Could not generate item variations.", variant: "destructive" });
-    } finally {
-      setIsLoadingVariations(false);
-    }
-  };
+  // const handleGenerateVariations = async () => { // Removed
+  //   if (!selectedItemForVariation) return;
+  //   setIsLoadingVariations(true);
+  //   try {
+  //     const favoriteItemsForAI = items.filter(i => favoriteItemIds.includes(i.id));
+  //     const result = await generateItemVariationsAI({
+  //       selectedMeal: selectedItemForVariation.name, 
+  //       favoriteMeals: favoriteItemsForAI.map(i => i.name), 
+  //     });
+  //     setItemVariations(result.variations);
+  //     if (result.variations.length > 0) {
+  //       toast({ title: "Variations Generated!", description: `New ideas for "${selectedItemForVariation.name}" are ready.` });
+  //     } else {
+  //       toast({ title: "No Variations Found", description: `Couldn't find variations for "${selectedItemForVariation.name}".` });
+  //     }
+  //   } catch (error) {
+  //     console.error("Error generating variations:", error);
+  //     toast({ title: "Error", description: "Could not generate item variations.", variant: "destructive" });
+  //   } finally {
+  //     setIsLoadingVariations(false);
+  //   }
+  // };
 
   const handleAddManualGroceryItem = (name: string) => {
     if (name.trim() === '') {
@@ -383,9 +383,9 @@ export default function DinnerTimePage() {
           <ItemInputForm onAddItem={handleAddItem} />
           <ItemListDisplay
             items={items}
-            favoriteItemIds={favoriteItemIds}
-            onToggleFavorite={handleToggleFavoriteItem}
-            onSelectForVariation={handleSelectForVariation}
+            // favoriteItemIds={favoriteItemIds} // Removed
+            // onToggleFavorite={handleToggleFavoriteItem} // Removed
+            // onSelectForVariation={handleSelectForVariation} // Removed
             onDeleteItem={handleDeleteItem}
             onEditItemName={handleEditItemName}
           />
@@ -418,7 +418,7 @@ export default function DinnerTimePage() {
         </main>
       </div>
 
-      <VariationGeneratorDialog
+      {/* <VariationGeneratorDialog // Removed
         isOpen={isVariationDialogOpen}
         onOpenChange={setIsVariationDialogOpen}
         selectedItem={selectedItemForVariation}
@@ -427,7 +427,7 @@ export default function DinnerTimePage() {
         variations={itemVariations}
         isLoading={isLoadingVariations}
         className="non-printable-elements"
-      />
+      /> */}
     </div>
   );
 }
