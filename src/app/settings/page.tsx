@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Settings as SettingsIcon, Edit3 } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Edit3, UploadCloud } from 'lucide-react';
+import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form';
+import type { Item, ItemType } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const DEFAULT_SUBTITLE = "Plan your weekly entrees and sides with appetite and comfort.";
 
@@ -15,6 +18,7 @@ export default function SettingsPage() {
   const [familyName, setFamilyName] = useState<string>('');
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -52,6 +56,41 @@ export default function SettingsPage() {
   const handleSubtitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setCustomSubtitle(event.target.value);
   };
+
+  const handleBulkAddItems = (newItemsFromFile: Array<Omit<Item, 'id'>>): { addedCount: number, duplicateCount: number } => {
+    if (!isClient) return { addedCount: 0, duplicateCount: 0 };
+
+    let addedCount = 0;
+    let duplicateCount = 0;
+    const itemsToAdd: Item[] = [];
+    
+    const storedItemsRaw = localStorage.getItem('dinnertime_items');
+    const currentItems: Item[] = storedItemsRaw ? JSON.parse(storedItemsRaw) : [];
+
+    newItemsFromFile.forEach(itemFromFile => {
+      if (!currentItems.some(existingItem => existingItem.name.toLowerCase() === itemFromFile.name.toLowerCase() && existingItem.type === itemFromFile.type)) {
+        itemsToAdd.push({
+          ...itemFromFile,
+          id: crypto.randomUUID(),
+        });
+        addedCount++;
+      } else {
+        duplicateCount++;
+      }
+    });
+
+    if (itemsToAdd.length > 0) {
+      const updatedItems = [...currentItems, ...itemsToAdd].sort((a, b) => a.name.localeCompare(b.name));
+      localStorage.setItem('dinnertime_items', JSON.stringify(updatedItems));
+    }
+    
+    toast({
+      title: "CSV Processed",
+      description: `${addedCount} item(s) added. ${duplicateCount} duplicate(s) skipped. Items will refresh on the main planner page.`,
+    });
+    return { addedCount, duplicateCount };
+  };
+
 
   if (!isClient) {
     return (
@@ -111,6 +150,8 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ItemCsvUploadForm onBulkAddItems={handleBulkAddItems} />
         
         <Link href="/" passHref>
           <Button variant="outline" className="w-full">

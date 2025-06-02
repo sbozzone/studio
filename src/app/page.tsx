@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
-import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
 import SmartSuggestionCTA from '@/components/dinnertime/smart-suggestion-cta';
 import VariationGeneratorDialog from '@/components/dinnertime/variation-generator-dialog';
@@ -161,6 +160,10 @@ export default function DinnerTimePage() {
         setFamilyName(event.newValue !== null ? event.newValue : 'My');
       } else if (event.key === 'dinnertime_customSubtitle') {
         setCustomSubtitle(event.newValue !== null ? event.newValue : DEFAULT_SUBTITLE);
+      } else if (event.key === 'dinnertime_items') {
+        if (event.newValue !== null) {
+          setItems(JSON.parse(event.newValue));
+        }
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -193,30 +196,6 @@ export default function DinnerTimePage() {
       toast({ title: "Already Exists", description: `"${newItem.name} (${newItem.type})" is already in your list.`, variant: "destructive" });
     }
   };
-
-  const handleBulkAddItems = (newItemsFromFile: Array<Omit<Item, 'id'>>): { addedCount: number, duplicateCount: number } => {
-    let addedCount = 0;
-    let duplicateCount = 0;
-    const itemsToAdd: Item[] = [];
-
-    newItemsFromFile.forEach(itemFromFile => {
-      if (!items.some(existingItem => existingItem.name.toLowerCase() === itemFromFile.name.toLowerCase() && existingItem.type === itemFromFile.type)) {
-        itemsToAdd.push({
-          ...itemFromFile,
-          id: crypto.randomUUID(),
-        });
-        addedCount++;
-      } else {
-        duplicateCount++;
-      }
-    });
-
-    if (itemsToAdd.length > 0) {
-      setItems(prev => [...prev, ...itemsToAdd].sort((a, b) => a.name.localeCompare(b.name)));
-    }
-    return { addedCount, duplicateCount };
-  };
-
 
   const handleDeleteItem = (itemIdToDelete: string) => {
     const itemToDelete = items.find(i => i.id === itemIdToDelete);
@@ -387,7 +366,6 @@ export default function DinnerTimePage() {
             onSelectForVariation={handleSelectForVariation}
             onDeleteItem={handleDeleteItem}
           />
-          <ItemCsvUploadForm onBulkAddItems={handleBulkAddItems} />
           <SmartSuggestionCTA
             onGetSuggestions={handleGetSuggestions}
             suggestions={suggestedAIItemNames}
