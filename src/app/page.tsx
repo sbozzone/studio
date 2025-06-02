@@ -32,7 +32,7 @@ const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
   return acc;
 }, {} as WeeklyPlan);
 
-const DEFAULT_SUBTITLE = "Plan your weekly entrees and sides with appetite and comfort.";
+const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);

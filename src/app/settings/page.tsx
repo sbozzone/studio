@@ -12,7 +12,7 @@ import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form';
 import type { Item, ItemType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
-const DEFAULT_SUBTITLE = "Plan your weekly entrees and sides with appetite and comfort.";
+const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
 export default function SettingsPage() {
   const [familyName, setFamilyName] = useState<string>('');
