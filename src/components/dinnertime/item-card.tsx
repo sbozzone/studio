@@ -48,7 +48,7 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
 
   return (
     <Card className="flex flex-col justify-between">
-      <CardHeader>
+      <CardHeader className="py-3 px-4">
         <div className="flex justify-between items-start">
           {isEditing ? (
             <div className="flex items-center gap-2 w-full pr-2">
@@ -76,29 +76,29 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        {/* Placeholder for potential future content */}
+      <CardContent className="p-0">
+        {/* Content padding removed as it's not used currently. Can be added back if needed. */}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+      <CardFooter className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center py-3 px-4">
         {isEditing ? (
           <>
-            <Button onClick={handleSaveEdit} disabled={!canSave} className="flex-grow">
-              <Save className="mr-2 h-5 w-5" />
+            <Button onClick={handleSaveEdit} disabled={!canSave} className="flex-grow h-9">
+              <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="flex-grow">
-              <XCircle className="mr-2 h-5 w-5" />
+            <Button variant="outline" onClick={handleCancelEdit} className="flex-grow h-9">
+              <XCircle className="mr-2 h-4 w-4" />
               Cancel
             </Button>
           </>
         ) : (
           <>
-            <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit item name" className="ml-auto">
-              <Pencil className="h-5 w-5 text-muted-foreground hover:text-accent" />
+            <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit item name" className="ml-auto h-8 w-8">
+              <Pencil className="h-4 w-4 text-muted-foreground hover:text-accent" />
             </Button>
             {onDeleteItem && (
-              <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label="Delete item">
-                <Trash2 className="h-5 w-5 text-destructive" />
+              <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label="Delete item" className="h-8 w-8">
+                <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             )}
           </>
