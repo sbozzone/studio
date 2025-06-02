@@ -52,12 +52,12 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
         <div className="flex justify-between items-start">
           {isEditing ? (
             <div className="flex items-center gap-2 w-full pr-2">
-              <Icon className="h-5 w-5 text-primary shrink-0" />
+              <Icon className="h-4 w-4 text-primary shrink-0" />
               <Input
                 type="text"
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="text-xl font-headline h-9 flex-grow"
+                className="text-lg font-headline h-8 flex-grow"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && canSave) handleSaveEdit();
@@ -66,8 +66,8 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
               />
             </div>
           ) : (
-            <CardTitle className="flex items-center font-headline text-xl">
-              <Icon className="mr-2 h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center font-headline text-lg">
+              <Icon className="mr-2 h-4 w-4 text-primary" />
               {item.name}
             </CardTitle>
           )}
@@ -82,11 +82,11 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
       <CardFooter className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center py-3 px-4">
         {isEditing ? (
           <>
-            <Button onClick={handleSaveEdit} disabled={!canSave} className="flex-grow h-9">
+            <Button onClick={handleSaveEdit} disabled={!canSave} className="flex-grow h-8">
               <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="flex-grow h-9">
+            <Button variant="outline" onClick={handleCancelEdit} className="flex-grow h-8">
               <XCircle className="mr-2 h-4 w-4" />
               Cancel
             </Button>
@@ -109,3 +109,4 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
 };
 
 export default ItemCard;
+

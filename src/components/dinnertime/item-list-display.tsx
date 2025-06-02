@@ -28,7 +28,7 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, onDeleteItem, onEdit
           <p className="text-muted-foreground">No items added yet. Add some entrees or side dishes to get started!</p>
         ) : (
           <ScrollArea className="h-72">
-            <div className="space-y-4 pr-4">
+            <div className="space-y-2 pr-4">
               {items.map((item) => (
                 <ItemCard
                   key={item.id}
@@ -46,3 +46,4 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, onDeleteItem, onEdit
 };
 
 export default ItemListDisplay;
+
