@@ -1,13 +1,13 @@
 
 "use client";
 
-import * as React from 'react'; // Added this line
+import * as React from 'react';
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, CalendarDays, StickyNote, Thermometer, Salad, Beef, Utensils } from 'lucide-react';
+import { Trash2, CalendarDays, StickyNote, Thermometer, Salad, Beef, Utensils, Dices } from 'lucide-react';
 import type { DayOfWeek, Item, DayPlanData, DailyWeather } from '@/types';
 import { Label } from '@/components/ui/label';
 
@@ -26,6 +26,16 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
   const handleItemSelectChange = (itemSlot: 'entree' | 'side1' | 'side2', itemId: string) => {
     if (itemId === "none" || itemId === "") {
       onUpdateDayData(day, { [itemSlot]: null });
+    } else if (itemId === "feeling-lucky") {
+      const relevantItems = itemSlot === 'entree' ? entreeItems : sideItems;
+      if (relevantItems.length > 0) {
+        const randomIndex = Math.floor(Math.random() * relevantItems.length);
+        const luckyItem = relevantItems[randomIndex];
+        onUpdateDayData(day, { [itemSlot]: luckyItem });
+      } else {
+        // No items to pick from, so treat as "none"
+        onUpdateDayData(day, { [itemSlot]: null });
+      }
     } else {
       const selectedItem = allItems.find(item => item.id === itemId);
       onUpdateDayData(day, { [itemSlot]: selectedItem || null });
@@ -64,6 +74,12 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">-- Not Planned --</SelectItem>
+            <SelectItem value="feeling-lucky">
+              <div className="flex items-center">
+                <Dices className="mr-2 h-4 w-4 opacity-70" />
+                I'm Feeling Lucky
+              </div>
+            </SelectItem>
             {availableItems.map((item) => (
               <SelectItem key={item.id} value={item.id}>
                 {item.name}
