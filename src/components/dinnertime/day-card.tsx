@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, CalendarDays, StickyNote, Thermometer, Salad, Beef, Utensils, Dices } from 'lucide-react';
+import { Trash2, CalendarDays, StickyNote, Thermometer, Salad, Beef, Utensils, Dices, UtensilsCrossed } from 'lucide-react';
 import type { DayOfWeek, Item, DayPlanData, DailyWeather } from '@/types';
 import { Label } from '@/components/ui/label';
 
@@ -24,21 +24,47 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
   const sideItems = allItems.filter(item => item.type === 'side');
 
   const handleItemSelectChange = (itemSlot: 'entree' | 'side1' | 'side2', itemId: string) => {
-    if (itemId === "none" || itemId === "") {
-      onUpdateDayData(day, { [itemSlot]: null });
+    if (itemSlot === 'entree' && itemId === "eat-out") {
+      onUpdateDayData(day, { 
+        entree: null, 
+        side1: null, 
+        side2: null, 
+        note: "Screw It, let's eat out!" 
+      });
+    } else if (itemId === "none" || itemId === "") {
+      // If clearing an entree and the note was "Screw It, let's eat out!", clear the note too.
+      if (itemSlot === 'entree' && dayData.note === "Screw It, let's eat out!") {
+        onUpdateDayData(day, { [itemSlot]: null, note: '' });
+      } else {
+        onUpdateDayData(day, { [itemSlot]: null });
+      }
     } else if (itemId === "feeling-lucky") {
       const relevantItems = itemSlot === 'entree' ? entreeItems : sideItems;
       if (relevantItems.length > 0) {
         const randomIndex = Math.floor(Math.random() * relevantItems.length);
         const luckyItem = relevantItems[randomIndex];
-        onUpdateDayData(day, { [itemSlot]: luckyItem });
+        // If "feeling lucky" picks an entree and the current note is "Screw It, let's eat out!", clear the note.
+        if (itemSlot === 'entree' && dayData.note === "Screw It, let's eat out!") {
+          onUpdateDayData(day, { [itemSlot]: luckyItem, note: '' });
+        } else {
+          onUpdateDayData(day, { [itemSlot]: luckyItem });
+        }
       } else {
-        // No items to pick from, so treat as "none"
-        onUpdateDayData(day, { [itemSlot]: null });
+        // No items to pick from, treat as "none"
+        if (itemSlot === 'entree' && dayData.note === "Screw It, let's eat out!") {
+          onUpdateDayData(day, { [itemSlot]: null, note: '' });
+        } else {
+          onUpdateDayData(day, { [itemSlot]: null });
+        }
       }
     } else {
       const selectedItem = allItems.find(item => item.id === itemId);
-      onUpdateDayData(day, { [itemSlot]: selectedItem || null });
+      // If selecting a specific entree, and the current note is "Screw It, let's eat out!", clear the note.
+      if (itemSlot === 'entree' && dayData.note === "Screw It, let's eat out!") {
+        onUpdateDayData(day, { [itemSlot]: selectedItem || null, note: '' });
+      } else {
+        onUpdateDayData(day, { [itemSlot]: selectedItem || null });
+      }
     }
   };
 
@@ -74,6 +100,14 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">-- Not Planned --</SelectItem>
+            {slot === 'entree' && (
+              <SelectItem value="eat-out">
+                <div className="flex items-center">
+                  <UtensilsCrossed className="mr-2 h-4 w-4 opacity-70" />
+                  Screw It, let's eat out!
+                </div>
+              </SelectItem>
+            )}
             <SelectItem value="feeling-lucky">
               <div className="flex items-center">
                 <Dices className="mr-2 h-4 w-4 opacity-70" />
@@ -91,7 +125,7 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onUpdateDayData(day, { [slot]: null })}
+            onClick={() => handleItemSelectChange(slot, "none")} // Use "none" to trigger potential note clearing
             className="text-destructive hover:text-destructive button-no-print p-1 h-8 w-8 flex-shrink-0"
             aria-label={`Clear ${label.toLowerCase()} for ${day}`}
           >
