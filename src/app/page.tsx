@@ -79,30 +79,27 @@ export default function DinnerTimePage() {
       try {
         const parsedPlan = JSON.parse(storedPlan);
         const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-          acc[day] = { entree: null, side1: null, side2: null, note: '' }; // Initialize with new structure
+          acc[day] = { entree: null, side1: null, side2: null, note: '' }; 
           const dayData = parsedPlan[day];
 
           if (dayData) {
-            // Check if it's the new structure
             if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
               acc[day].entree = dayData.entree || null;
               acc[day].side1 = dayData.side1 || null;
               acc[day].side2 = dayData.side2 || null;
               acc[day].note = dayData.note || '';
             } 
-            // Check if it's the intermediate structure { item: Item | null, note: string }
             else if (dayData.hasOwnProperty('item')) {
               const oldItem = dayData.item as Item | null;
               if (oldItem) {
                 if (oldItem.type === 'entree') {
                   acc[day].entree = oldItem;
                 } else if (oldItem.type === 'side') {
-                  acc[day].side1 = oldItem; // Place in side1 by default
+                  acc[day].side1 = oldItem; 
                 }
               }
               acc[day].note = dayData.note || '';
             }
-            // Check if it's the very old structure (just an Item or null)
             else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
                  const oldSingleItem = dayData as Item;
                  if (oldSingleItem.type === 'entree') {
@@ -117,7 +114,7 @@ export default function DinnerTimePage() {
         setWeeklyPlan(migratedPlan);
       } catch (e) {
         console.error("Failed to parse or migrate weekly plan from localStorage", e);
-        setWeeklyPlan(initialWeeklyPlan); // Fallback to new initial plan
+        setWeeklyPlan(initialWeeklyPlan);
       }
     } else {
       setWeeklyPlan(initialWeeklyPlan);
@@ -157,7 +154,12 @@ export default function DinnerTimePage() {
         setCustomSubtitle(event.newValue !== null ? event.newValue : DEFAULT_SUBTITLE);
       } else if (event.key === 'dinnertime_items') {
         if (event.newValue !== null) {
-          setItems(JSON.parse(event.newValue));
+            try {
+                const newItems = JSON.parse(event.newValue);
+                setItems(newItems);
+            } catch (e) {
+                console.error("Error parsing items from storage event", e);
+            }
         }
       }
     };
@@ -190,6 +192,62 @@ export default function DinnerTimePage() {
     } else {
       toast({ title: "Already Exists", description: `"${newItem.name} (${newItem.type})" is already in your list.`, variant: "destructive" });
     }
+  };
+
+  const handleEditItemName = (itemId: string, newName: string) => {
+    const trimmedNewName = newName.trim();
+    if (!trimmedNewName) {
+      toast({ title: "Invalid Name", description: "Item name cannot be empty.", variant: "destructive" });
+      return;
+    }
+
+    const originalItem = items.find(i => i.id === itemId);
+    if (!originalItem) return;
+
+    const isDuplicate = items.some(
+      item => item.id !== itemId && item.name.toLowerCase() === trimmedNewName.toLowerCase() && item.type === originalItem.type
+    );
+
+    if (isDuplicate) {
+      toast({
+        title: "Name Already Exists",
+        description: `An item named "${trimmedNewName}" of type "${originalItem.type}" already exists.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setItems(prevItems =>
+      prevItems
+        .map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    );
+
+    setWeeklyPlan(prevPlan => {
+      const updatedPlan = { ...prevPlan };
+      for (const day of DAYS_OF_WEEK) {
+        const dayData = { ...updatedPlan[day] };
+        let changed = false;
+        if (dayData.entree?.id === itemId) {
+          dayData.entree = { ...dayData.entree, name: trimmedNewName };
+          changed = true;
+        }
+        if (dayData.side1?.id === itemId) {
+          dayData.side1 = { ...dayData.side1, name: trimmedNewName };
+          changed = true;
+        }
+        if (dayData.side2?.id === itemId) {
+          dayData.side2 = { ...dayData.side2, name: trimmedNewName };
+          changed = true;
+        }
+        if (changed) {
+          updatedPlan[day] = dayData;
+        }
+      }
+      return updatedPlan;
+    });
+
+    toast({ title: "Item Updated", description: `"${originalItem.name}" is now "${trimmedNewName}".` });
   };
 
   const handleDeleteItem = (itemIdToDelete: string) => {
@@ -329,6 +387,7 @@ export default function DinnerTimePage() {
             onToggleFavorite={handleToggleFavoriteItem}
             onSelectForVariation={handleSelectForVariation}
             onDeleteItem={handleDeleteItem}
+            onEditItemName={handleEditItemName}
           />
         </aside>
 

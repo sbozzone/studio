@@ -14,9 +14,10 @@ interface ItemListDisplayProps {
   onToggleFavorite: (itemId: string) => void;
   onSelectForVariation: (item: Item) => void;
   onDeleteItem: (itemId: string) => void;
+  onEditItemName: (itemId: string, newName: string) => void; // New prop
 }
 
-const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, favoriteItemIds, onToggleFavorite, onSelectForVariation, onDeleteItem }) => {
+const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, favoriteItemIds, onToggleFavorite, onSelectForVariation, onDeleteItem, onEditItemName }) => {
   return (
     <Card>
       <CardHeader>
@@ -39,6 +40,7 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, favoriteItemIds, onT
                   onToggleFavorite={onToggleFavorite}
                   onSelectForVariation={onSelectForVariation}
                   onDeleteItem={onDeleteItem}
+                  onEditItemName={onEditItemName} // Pass down the new prop
                 />
               ))}
             </div>
