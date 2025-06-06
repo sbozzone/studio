@@ -20,30 +20,8 @@ export interface DayPlanData {
 
 export type WeeklyPlan = Record<DayOfWeek, DayPlanData>;
 
-// Weather Related Types
-export interface DailyWeather {
-  date: string;
-  weatherCode: number;
-  maxTemp: number;
-  description: string;
-  icon: React.ElementType; // Lucide icon component
-}
-
-export interface ApiWeatherResponseDaily {
-  time: string[];
-  weather_code: number[];
-  temperature_2m_max: number[];
-}
-
-export interface ApiWeatherResponse {
-  latitude: number;
-  longitude: number;
-  daily: ApiWeatherResponseDaily;
-}
-
 // Manual Grocery Item
 export interface ManualGroceryItem {
   id: string;
   name: string;
 }
-

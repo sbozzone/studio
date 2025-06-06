@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Trash2, CalendarDays, StickyNote, Thermometer, Salad, Beef, Utensils, Dices, UtensilsCrossed } from 'lucide-react';
-import type { DayOfWeek, Item, DayPlanData, DailyWeather } from '@/types';
+import { Trash2, CalendarDays, StickyNote, Salad, Beef, Utensils, Dices, UtensilsCrossed } from 'lucide-react';
+import type { DayOfWeek, Item, DayPlanData } from '@/types';
 import { Label } from '@/components/ui/label';
 
 interface DayCardProps {
@@ -16,10 +16,9 @@ interface DayCardProps {
   dayData: DayPlanData;
   allItems: Item[];
   onUpdateDayData: (day: DayOfWeek, data: Partial<DayPlanData>) => void;
-  dailyWeather?: DailyWeather;
 }
 
-const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, dailyWeather }) => {
+const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) => {
   const entreeItems = allItems.filter(item => item.type === 'entree');
   const sideItems = allItems.filter(item => item.type === 'side');
 
@@ -71,8 +70,6 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
   const handleNoteChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdateDayData(day, { note: event.target.value });
   };
-
-  const WeatherIcon = dailyWeather ? dailyWeather.icon : null;
 
   const createItemSelector = (
     slot: 'entree' | 'side1' | 'side2',
@@ -144,13 +141,6 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, da
             <CalendarDays className="mr-2 h-5 w-5 text-primary opacity-70" />
             {day}
           </CardTitle>
-          {dailyWeather && WeatherIcon && (
-            <div className="flex items-center text-sm text-muted-foreground" title={`${dailyWeather.maxTemp}°F - ${dailyWeather.description}`}>
-              <WeatherIcon className="mr-1 h-5 w-5" />
-              <Thermometer className="mr-0.5 h-4 w-4 text-blue-500" />
-              <span>{dailyWeather.maxTemp}°F</span>
-            </div>
-          )}
         </div>
       </CardHeader>
       <CardContent className="flex-grow space-y-3">
