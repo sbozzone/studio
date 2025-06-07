@@ -3,11 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Settings as SettingsIcon, Edit3, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Edit3, UploadCloud, LogOut, UserCircle } from 'lucide-react';
 import ItemCsvUploadForm from '@/components/dinnertime/item-csv-upload-form';
 import type { Item, ItemType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -19,35 +21,45 @@ export default function SettingsPage() {
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
-    const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-    if (storedFamilyName) {
-      setFamilyName(storedFamilyName);
-    } else {
-      setFamilyName('My'); // Default if nothing is stored
+    if (!loading && !user) {
+      router.push('/login');
     }
+  }, [user, loading, router]);
+  
+  useEffect(() => {
+    if (isClient && user) { // Ensure user is loaded before accessing localStorage
+        const storedFamilyName = localStorage.getItem('dinnertime_familyName');
+        if (storedFamilyName) {
+        setFamilyName(storedFamilyName);
+        } else {
+        setFamilyName('My'); 
+        }
 
-    const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
-    if (storedSubtitle) {
-      setCustomSubtitle(storedSubtitle);
-    } else {
-      setCustomSubtitle(DEFAULT_SUBTITLE);
+        const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
+        if (storedSubtitle) {
+        setCustomSubtitle(storedSubtitle);
+        } else {
+        setCustomSubtitle(DEFAULT_SUBTITLE);
+        }
     }
-  }, []);
+  }, [isClient, user]); // Add user to dependency array
 
   useEffect(() => {
-    if (isClient) {
+    if (isClient && user) {
       localStorage.setItem('dinnertime_familyName', familyName);
     }
-  }, [familyName, isClient]);
+  }, [familyName, isClient, user]);
 
   useEffect(() => {
-    if (isClient) {
+    if (isClient && user) {
       localStorage.setItem('dinnertime_customSubtitle', customSubtitle);
     }
-  }, [customSubtitle, isClient]);
+  }, [customSubtitle, isClient, user]);
 
   const handleFamilyNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFamilyName(event.target.value);
@@ -58,7 +70,7 @@ export default function SettingsPage() {
   };
 
   const handleBulkAddItems = (newItemsFromFile: Array<Omit<Item, 'id'>>): { addedCount: number, duplicateCount: number } => {
-    if (!isClient) return { addedCount: 0, duplicateCount: 0 };
+    if (!isClient || !user) return { addedCount: 0, duplicateCount: 0 }; // Check for user
 
     let addedCount = 0;
     let duplicateCount = 0;
@@ -82,6 +94,8 @@ export default function SettingsPage() {
     if (itemsToAdd.length > 0) {
       const updatedItems = [...currentItems, ...itemsToAdd].sort((a, b) => a.name.localeCompare(b.name));
       localStorage.setItem('dinnertime_items', JSON.stringify(updatedItems));
+       // Dispatch storage event so main page can pick up changes if it's open
+      window.dispatchEvent(new StorageEvent('storage', { key: 'dinnertime_items', newValue: JSON.stringify(updatedItems) }));
     }
     
     toast({
@@ -91,8 +105,18 @@ export default function SettingsPage() {
     return { addedCount, duplicateCount };
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({ title: "Signed Out", description: "You have been successfully signed out." });
+      router.push('/login');
+    } catch (error) {
+      console.error("Sign out error on settings page:", error);
+      toast({ title: "Sign Out Failed", description: "Could not sign you out. Please try again.", variant: "destructive" });
+    }
+  };
 
-  if (!isClient) {
+  if (loading || !user || !isClient) { // Also check for isClient
     return (
       <div className="flex justify-center items-center min-h-screen">
         <SettingsIcon className="h-12 w-12 animate-spin text-primary" />
@@ -114,6 +138,24 @@ export default function SettingsPage() {
       </header>
 
       <main className="w-full max-w-md space-y-6">
+        {user && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
+                        <UserCircle className="mr-2 h-5 w-5 opacity-70" />
+                        Account
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    <p className="text-sm">Logged in as: <span className="font-medium">{user.email}</span></p>
+                    <Button onClick={handleSignOut} variant="outline" className="w-full">
+                        <LogOut className="mr-2 h-5 w-5" />
+                        Sign Out
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
@@ -161,7 +203,7 @@ export default function SettingsPage() {
         </Link>
       </main>
        <footer className="py-8 mt-auto text-center text-muted-foreground text-sm">
-        DinnerTime App
+        DinnerTime App - {user ? user.email : 'Logged Out'}
       </footer>
     </div>
   );
