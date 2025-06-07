@@ -36,7 +36,7 @@ const ItemInputForm: FC<ItemInputFormProps> = ({ onAddItem }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center font-headline text-2xl">
+        <CardTitle className="flex items-center font-headline text-xl md:text-2xl">
           <Utensils className="mr-2 h-6 w-6 text-primary" />
           Add New Item
         </CardTitle>

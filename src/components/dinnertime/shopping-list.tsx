@@ -59,7 +59,7 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
   return (
     <Card className="shadow-lg flex flex-col">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl flex items-center">
+        <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
           <ShoppingCart className="mr-2 h-6 w-6 text-primary" />
           Shopping List
         </CardTitle>

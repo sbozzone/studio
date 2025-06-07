@@ -18,7 +18,7 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, onDeleteItem, onEdit
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center font-headline text-2xl">
+        <CardTitle className="flex items-center font-headline text-xl md:text-2xl">
           <ListCollapse className="mr-2 h-6 w-6 text-primary" />
           Your Items
         </CardTitle>
@@ -46,4 +46,3 @@ const ItemListDisplay: FC<ItemListDisplayProps> = ({ items, onDeleteItem, onEdit
 };
 
 export default ItemListDisplay;
-

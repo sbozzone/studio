@@ -290,7 +290,7 @@ export default function DinnerTimePage() {
             {familyName ? familyName + "'s" : "My"} DinnerTime
           </h1>
         </div>
-        <p className="text-lg text-muted-foreground mt-2">{customSubtitle}</p>
+        <p className="text-base md:text-lg text-muted-foreground mt-2">{customSubtitle}</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8">

@@ -137,7 +137,7 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
     <Card className="flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <CardTitle className="font-headline text-xl flex items-center">
+          <CardTitle className="font-headline text-lg md:text-xl flex items-center">
             <CalendarDays className="mr-2 h-5 w-5 text-primary opacity-70" />
             {day}
           </CardTitle>

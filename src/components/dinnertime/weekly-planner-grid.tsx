@@ -18,7 +18,7 @@ const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdat
   return (
     <Card className="shadow-xl">
       <CardHeader>
-        <CardTitle className="font-headline text-3xl text-center flex items-center justify-center">
+        <CardTitle className="font-headline text-2xl md:text-3xl text-center flex items-center justify-center">
           <NotebookText className="mr-3 h-8 w-8 text-primary" />
           Your Weekly Plan
         </CardTitle>

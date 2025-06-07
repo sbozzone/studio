@@ -110,13 +110,13 @@ export default function SettingsPage() {
             Settings
           </h1>
         </div>
-        <p className="text-lg text-muted-foreground mt-2">Customize your DinnerTime planner.</p>
+        <p className="text-base md:text-lg text-muted-foreground mt-2">Customize your DinnerTime planner.</p>
       </header>
 
       <main className="w-full max-w-md space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-2xl flex items-center">
+            <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
                 <Edit3 className="mr-2 h-5 w-5 opacity-70" />
                 Planner Customization
             </CardTitle>
