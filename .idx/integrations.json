@@ -4,6 +4,5 @@
     "region": "us-central1",
     "sourceFlag": "--source .",
     "allowUnauthenticatedInvocationsFlag": "--no-allow-unauthenticated"
-  },
-  "gemini_api": {}
+  }
 }
