@@ -29,6 +29,7 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Attempting sign-in. Firebase config being used:', auth.app.options);
     setIsSubmitting(true);
     try {
       await signIn(auth, email, password);
@@ -44,6 +45,7 @@ export default function LoginPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Attempting sign-up. Firebase config being used:', auth.app.options);
     setIsSubmitting(true);
     try {
       await signUp(auth, email, password);
