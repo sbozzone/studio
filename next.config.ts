@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['*.cloudworkstations.dev'],
+  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev','*.cloudworkstations.dev'],
 };
 
 export default nextConfig;
