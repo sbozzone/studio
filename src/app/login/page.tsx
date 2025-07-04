@@ -37,7 +37,16 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       console.error("Sign in error", error);
-      toast({ title: "Sign In Failed", description: error.message || "Please check your credentials.", variant: "destructive" });
+      if (error.code === 'auth/configuration-not-found') {
+        toast({
+          title: "Firebase Configuration Error",
+          description: "Could not find valid Firebase credentials. Please check your .env.local file and restart the server.",
+          variant: "destructive",
+          duration: 10000,
+        });
+      } else {
+        toast({ title: "Sign In Failed", description: error.message || "Please check your credentials.", variant: "destructive" });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -50,13 +59,19 @@ export default function LoginPage() {
     try {
       await signUp(auth, email, password);
       toast({ title: "Account Created!", description: "Welcome to DinnerTime! Please sign in." });
-      // Optionally, you could sign them in directly and redirect, 
-      // but here we'll let them sign in after creating account.
-      // setEmail(''); // Clear fields for potential sign-in
-      // setPassword('');
-    } catch (error: any) {
+    } catch (error: any)
+      {
       console.error("Sign up error", error);
-      toast({ title: "Sign Up Failed", description: error.message || "Could not create account.", variant: "destructive" });
+      if (error.code === 'auth/configuration-not-found') {
+        toast({
+          title: "Firebase Configuration Error",
+          description: "Could not find valid Firebase credentials. Please check your .env.local file and restart the server.",
+          variant: "destructive",
+          duration: 10000,
+        });
+      } else {
+        toast({ title: "Sign Up Failed", description: error.message || "Could not create account.", variant: "destructive" });
+      }
     } finally {
       setIsSubmitting(false);
     }
