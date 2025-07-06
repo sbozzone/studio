@@ -20,6 +20,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log('[Layout Server Component] Checking Firebase Project ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
