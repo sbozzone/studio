@@ -3,8 +3,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import ItemInputForm from '@/components/dinnertime/item-input-form';
 import ItemListDisplay from '@/components/dinnertime/item-list-display';
 import WeeklyPlannerGrid from '@/components/dinnertime/weekly-planner-grid';
@@ -15,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, DayPlanData, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
-import { ChefHat, Settings, LogOut } from 'lucide-react'; // Added LogOut
+import { ChefHat, Settings } from 'lucide-react';
 
 const getRotatedDays = (): DayOfWeek[] => {
   const todayIndex = new Date().getDay();
@@ -45,88 +43,80 @@ export default function DinnerTimePage() {
   const [manualGroceryItems, setManualGroceryItems] = useState<ManualGroceryItem[]>([]);
 
   const { toast } = useToast();
-  const { user, loading, signOut } = useAuth(); // Get auth state
-  const router = useRouter(); // Get router instance
 
   useEffect(() => {
-    setIsClient(true); // Ensure client-side only execution for localStorage and auth checks
+    setIsClient(true);
   }, []);
   
   useEffect(() => {
-    if (isClient) { // Only run on client
-        if (!loading && !user) {
-            router.push('/login'); // Redirect if not logged in and not loading
-        } else if (user) {
-            // User is logged in, load data from localStorage (for now)
-            // In the future, this is where you'd fetch from Firestore
-            setOrderedDaysForDisplay(getRotatedDays());
+    if (isClient) {
+        setOrderedDaysForDisplay(getRotatedDays());
 
-            const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-            if (storedFamilyName) setFamilyName(storedFamilyName);
-            else setFamilyName('My');
+        const storedFamilyName = localStorage.getItem('dinnertime_familyName');
+        if (storedFamilyName) setFamilyName(storedFamilyName);
+        else setFamilyName('My');
 
-            const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
-            if (storedSubtitle) setCustomSubtitle(storedSubtitle);
-            else setCustomSubtitle(DEFAULT_SUBTITLE);
+        const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
+        if (storedSubtitle) setCustomSubtitle(storedSubtitle);
+        else setCustomSubtitle(DEFAULT_SUBTITLE);
 
-            const storedItems = localStorage.getItem('dinnertime_items');
-            if (storedItems) setItems(JSON.parse(storedItems));
-            
-            const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
-            if (storedPlan) {
-              try {
-                const parsedPlan = JSON.parse(storedPlan);
-                const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-                  acc[day] = { entree: null, side1: null, side2: null, note: '' }; 
-                  const dayData = parsedPlan[day];
+        const storedItems = localStorage.getItem('dinnertime_items');
+        if (storedItems) setItems(JSON.parse(storedItems));
+        
+        const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
+        if (storedPlan) {
+          try {
+            const parsedPlan = JSON.parse(storedPlan);
+            const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
+              acc[day] = { entree: null, side1: null, side2: null, note: '' }; 
+              const dayData = parsedPlan[day];
 
-                  if (dayData) {
-                    if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
-                      acc[day].entree = dayData.entree || null;
-                      acc[day].side1 = dayData.side1 || null;
-                      acc[day].side2 = dayData.side2 || null;
-                      acc[day].note = dayData.note || '';
-                    } 
-                    else if (dayData.hasOwnProperty('item')) {
-                      const oldItem = dayData.item as Item | null;
-                      if (oldItem) {
-                        if (oldItem.type === 'entree') {
-                          acc[day].entree = oldItem;
-                        } else if (oldItem.type === 'side') {
-                          acc[day].side1 = oldItem; 
-                        }
-                      }
-                      acc[day].note = dayData.note || '';
-                    }
-                    else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
-                         const oldSingleItem = dayData as Item;
-                         if (oldSingleItem.type === 'entree') {
-                            acc[day].entree = oldSingleItem;
-                         } else if (oldSingleItem.type === 'side') {
-                            acc[day].side1 = oldSingleItem;
-                         }
+              if (dayData) {
+                if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
+                  acc[day].entree = dayData.entree || null;
+                  acc[day].side1 = dayData.side1 || null;
+                  acc[day].side2 = dayData.side2 || null;
+                  acc[day].note = dayData.note || '';
+                } 
+                else if (dayData.hasOwnProperty('item')) {
+                  const oldItem = dayData.item as Item | null;
+                  if (oldItem) {
+                    if (oldItem.type === 'entree') {
+                      acc[day].entree = oldItem;
+                    } else if (oldItem.type === 'side') {
+                      acc[day].side1 = oldItem; 
                     }
                   }
-                  return acc;
-                }, {} as WeeklyPlan);
-                setWeeklyPlan(migratedPlan);
-              } catch (e) {
-                console.error("Failed to parse or migrate weekly plan from localStorage", e);
-                setWeeklyPlan(initialWeeklyPlan);
+                  acc[day].note = dayData.note || '';
+                }
+                else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
+                     const oldSingleItem = dayData as Item;
+                     if (oldSingleItem.type === 'entree') {
+                        acc[day].entree = oldSingleItem;
+                     } else if (oldSingleItem.type === 'side') {
+                        acc[day].side1 = oldSingleItem;
+                     }
+                }
               }
-            } else {
-              setWeeklyPlan(initialWeeklyPlan);
-            }
-
-            const storedManualGroceryItems = localStorage.getItem('dinnertime_manualGroceryItems');
-            if (storedManualGroceryItems) setManualGroceryItems(JSON.parse(storedManualGroceryItems));
+              return acc;
+            }, {} as WeeklyPlan);
+            setWeeklyPlan(migratedPlan);
+          } catch (e) {
+            console.error("Failed to parse or migrate weekly plan from localStorage", e);
+            setWeeklyPlan(initialWeeklyPlan);
+          }
+        } else {
+          setWeeklyPlan(initialWeeklyPlan);
         }
+
+        const storedManualGroceryItems = localStorage.getItem('dinnertime_manualGroceryItems');
+        if (storedManualGroceryItems) setManualGroceryItems(JSON.parse(storedManualGroceryItems));
     }
-  }, [user, loading, router, toast, isClient]);
+  }, [isClient]);
 
 
   useEffect(() => {
-    if (!isClient) return; // Ensure this only runs client-side
+    if (!isClient) return;
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'dinnertime_familyName') {
         setFamilyName(event.newValue !== null ? event.newValue : 'My');
@@ -150,16 +140,16 @@ export default function DinnerTimePage() {
   }, [isClient]);
 
   useEffect(() => {
-    if(isClient && user) localStorage.setItem('dinnertime_items', JSON.stringify(items));
-  }, [items, isClient, user]);
+    if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
+  }, [items, isClient]);
 
   useEffect(() => {
-    if(isClient && user) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
-  }, [weeklyPlan, isClient, user]);
+    if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
+  }, [weeklyPlan, isClient]);
 
   useEffect(() => {
-    if(isClient && user) localStorage.setItem('dinnertime_manualGroceryItems', JSON.stringify(manualGroceryItems));
-  }, [manualGroceryItems, isClient, user]);
+    if(isClient) localStorage.setItem('dinnertime_manualGroceryItems', JSON.stringify(manualGroceryItems));
+  }, [manualGroceryItems, isClient]);
 
   const handleAddItem = (newItem: Item) => {
     if (!items.some(item => item.name.toLowerCase() === newItem.name.toLowerCase() && item.type === newItem.type)) {
@@ -288,7 +278,7 @@ export default function DinnerTimePage() {
     }
   };
   
-  if (loading || !user || !isClient) { // Show loading if auth is loading, no user, or not client-side yet
+  if (!isClient) {
     return (
       <div className="flex justify-center items-center min-h-screen non-printable-elements">
         <ChefHat className="h-12 w-12 animate-spin text-primary" />

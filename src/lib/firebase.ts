@@ -1,7 +1,6 @@
 
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -29,7 +28,7 @@ if (isFallbackConfig) {
     "***************************************************************************************************\n" +
     "FIREBASE CONFIGURATION WARNING:\n" +
     "Firebase is attempting to initialize with placeholder or missing configuration values.\n" +
-    "This will lead to errors like 'auth/configuration-not-found'.\n\n" +
+    "This can lead to errors if you use Firebase services.\n\n" +
     "Please ensure you have a .env.local file in the root of your project with your\n" +
     "actual Firebase project's credentials, prefixed with NEXT_PUBLIC_.\n\n" +
     "Example .env.local content:\n" +
@@ -52,5 +51,4 @@ if (!getApps().length) {
   app = getApp();
 }
 
-export const auth = getAuth(app);
 export default app;
