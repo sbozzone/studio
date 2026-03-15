@@ -328,6 +328,13 @@ export default function DinnerTimePage() {
         </main>
       </div>
 
+      {/* ── Footer credit ────────────────────────────────────────────────────── */}
+      <footer className="text-center py-2 non-printable-elements">
+        <p className="text-xs text-muted-foreground">
+          Built by <span className="font-semibold text-foreground/70">Stephen</span>
+        </p>
+      </footer>
+
       {/* ── Mobile bottom navigation ───────────────────────────────────────────
           Fixed to the bottom of the viewport. Hidden on desktop (lg+).
           Uses env(safe-area-inset-bottom) to clear the iPhone home indicator. */}

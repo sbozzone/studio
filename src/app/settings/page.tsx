@@ -175,8 +175,8 @@ export default function SettingsPage() {
         </Link>
       </main>
 
-      <footer className="hidden lg:block py-8 text-center text-muted-foreground text-sm">
-        DinnerTime App
+      <footer className="py-6 text-center text-muted-foreground text-sm">
+        Built by <span className="font-semibold text-foreground/70">Stephen</span>
       </footer>
     </div>
   );
