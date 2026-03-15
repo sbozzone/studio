@@ -12,12 +12,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, DayPlanData, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
-import { ChefHat, Settings } from 'lucide-react';
+import { ChefHat, Settings, NotebookText, ShoppingCart, Utensils } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   loadItems, saveItems,
   loadWeeklyPlanRaw, saveWeeklyPlan,
-  loadFamilyName, saveFamilyName,
-  loadCustomSubtitle, saveCustomSubtitle,
+  loadFamilyName,
+  loadCustomSubtitle,
   loadManualGroceryItems, saveManualGroceryItems,
   STORAGE_KEYS,
 } from '@/lib/storage';
@@ -30,6 +31,15 @@ import {
 
 const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
+// ── Mobile bottom-nav tab definitions ─────────────────────────────────────────
+type MobileTab = 'planner' | 'shopping' | 'items';
+
+const MOBILE_TABS: { id: MobileTab; label: string; Icon: React.ElementType }[] = [
+  { id: 'planner',  label: 'Planner',  Icon: NotebookText },
+  { id: 'shopping', label: 'Shopping', Icon: ShoppingCart },
+  { id: 'items',    label: 'Items',    Icon: Utensils },
+];
+
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(createEmptyPlan());
@@ -38,29 +48,24 @@ export default function DinnerTimePage() {
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
   const [manualGroceryItems, setManualGroceryItems] = useState<ManualGroceryItem[]>([]);
+  // Which section is visible on mobile (desktop always shows all three)
+  const [activeTab, setActiveTab] = useState<MobileTab>('planner');
 
   const { toast } = useToast();
 
   // ── Hydration guard ──────────────────────────────────────────────────────────
-  // Next.js renders on the server first. We only access localStorage after
-  // the component mounts on the client.
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => { setIsClient(true); }, []);
 
   // ── Initial load from localStorage ──────────────────────────────────────────
   useEffect(() => {
     if (!isClient) return;
 
-    // Start showing today's day first in the planner grid
     setOrderedDaysForDisplay(getRotatedDays());
-
     setFamilyName(loadFamilyName());
     setCustomSubtitle(loadCustomSubtitle(DEFAULT_SUBTITLE));
     setItems(loadItems());
     setManualGroceryItems(loadManualGroceryItems());
 
-    // Weekly plan needs migration in case the stored format is from an older version
     const raw = loadWeeklyPlanRaw();
     if (raw) {
       try {
@@ -75,8 +80,6 @@ export default function DinnerTimePage() {
   }, [isClient]);
 
   // ── Cross-tab sync ───────────────────────────────────────────────────────────
-  // When the settings page (a different tab) updates family name, subtitle, or
-  // items via a synthetic StorageEvent, this listener picks up the changes.
   useEffect(() => {
     if (!isClient) return;
 
@@ -86,11 +89,8 @@ export default function DinnerTimePage() {
       } else if (event.key === STORAGE_KEYS.customSubtitle) {
         setCustomSubtitle(event.newValue ?? DEFAULT_SUBTITLE);
       } else if (event.key === STORAGE_KEYS.items && event.newValue !== null) {
-        try {
-          setItems(JSON.parse(event.newValue));
-        } catch (e) {
-          console.error("Error parsing items from storage event", e);
-        }
+        try { setItems(JSON.parse(event.newValue)); }
+        catch (e) { console.error("Error parsing items from storage event", e); }
       }
     };
 
@@ -110,7 +110,7 @@ export default function DinnerTimePage() {
       toast({ title: "Already Exists", description: `"${newItem.name} (${newItem.type})" is already in your list.`, variant: "destructive" });
       return;
     }
-    setItems((prev) => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
+    setItems(prev => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
     toast({ title: "Item Added!", description: `"${newItem.name} (${newItem.type})" has been added.` });
   };
 
@@ -120,7 +120,6 @@ export default function DinnerTimePage() {
       toast({ title: "Invalid Name", description: "Item name cannot be empty.", variant: "destructive" });
       return;
     }
-
     const originalItem = items.find(i => i.id === itemId);
     if (!originalItem) return;
 
@@ -133,15 +132,11 @@ export default function DinnerTimePage() {
       return;
     }
 
-    // Update the item list
     setItems(prev =>
-      prev
-        .map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
-        .sort((a, b) => a.name.localeCompare(b.name))
+      prev.map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
+          .sort((a, b) => a.name.localeCompare(b.name))
     );
 
-    // Also update any occurrences already placed in the weekly plan so they
-    // reflect the new name immediately without a page reload.
     setWeeklyPlan(prevPlan => {
       const updatedPlan = { ...prevPlan };
       for (const day of DAYS_OF_WEEK) {
@@ -164,7 +159,6 @@ export default function DinnerTimePage() {
 
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
 
-    // Clear the deleted item from any day it was placed on
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
     for (const day of DAYS_OF_WEEK) {
@@ -189,7 +183,7 @@ export default function DinnerTimePage() {
     }));
   }, []);
 
-  // ── Manual grocery item handlers ─────────────────────────────────────────────
+  // ── Manual grocery handlers ──────────────────────────────────────────────────
 
   const handleAddManualGroceryItem = (name: string) => {
     if (!name.trim()) {
@@ -213,9 +207,9 @@ export default function DinnerTimePage() {
 
   if (!isClient) {
     return (
-      <div className="flex justify-center items-center min-h-screen non-printable-elements">
-        <ChefHat className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-xl font-headline">Loading DinnerTime...</p>
+      <div className="flex flex-col justify-center items-center min-h-screen gap-4 non-printable-elements">
+        <ChefHat className="h-12 w-12 animate-gentle-pulse text-primary" />
+        <p className="text-lg font-headline text-muted-foreground">Loading DinnerTime…</p>
       </div>
     );
   }
@@ -223,19 +217,56 @@ export default function DinnerTimePage() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <header className="text-center py-8 non-printable-elements space-y-4">
+    // pb-24 leaves room for the fixed bottom nav on mobile (h-16 + safe-area).
+    // lg:pb-8 restores normal padding when the bottom nav is hidden.
+    <div className="container mx-auto py-3 pb-24 lg:py-8 lg:pb-8 space-y-4 lg:space-y-8 animate-fade-up">
+
+      {/* ── Mobile app bar (hidden on desktop) ────────────────────────────────
+          A slim sticky header with the branding on the left and a settings
+          shortcut on the right — standard mobile app-bar pattern.           */}
+      <div className="lg:hidden flex items-center justify-between py-1 non-printable-elements">
+        <div className="flex items-center gap-2 min-w-0">
+          <ChefHat className="h-7 w-7 text-primary flex-shrink-0" />
+          <h1 className="text-xl font-headline text-primary truncate leading-tight">
+            {familyName ? `${familyName}'s` : "My"} DinnerTime
+          </h1>
+        </div>
+        <Link href="/settings" passHref>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            className="h-11 w-11 flex-shrink-0 ml-2"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </Link>
+      </div>
+
+      {/* ── Desktop header (hidden on mobile) ─────────────────────────────── */}
+      <header className="hidden lg:block text-center py-8 non-printable-elements space-y-4">
         <div className="flex items-center justify-center">
           <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16 text-primary" />
           <h1 className="text-5xl md:text-6xl font-headline text-primary">
-            {familyName ? familyName + "'s" : "My"} DinnerTime
+            {familyName ? `${familyName}'s` : "My"} DinnerTime
           </h1>
         </div>
         <p className="text-base md:text-lg text-muted-foreground mt-2">{customSubtitle}</p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <aside className="lg:col-span-1 space-y-6">
+      {/* ── Main content area ─────────────────────────────────────────────────
+          Mobile: one section visible at a time, controlled by activeTab.
+          Desktop: all three columns visible simultaneously in a grid.       */}
+      <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+
+        {/* Items sidebar
+            Mobile: visible only on the 'items' tab.
+            Desktop: always visible in the left column.                      */}
+        <aside className={cn(
+          "space-y-4 lg:col-span-1 lg:space-y-6",
+          activeTab === 'items' ? "block" : "hidden",
+          "lg:block"
+        )}>
           <ItemInputForm onAddItem={handleAddItem} />
           <ItemListDisplay
             items={items}
@@ -244,30 +275,96 @@ export default function DinnerTimePage() {
           />
         </aside>
 
-        <main id="printable-area" className="lg:col-span-2 space-y-6">
-          <WeeklyPlannerGrid
-            plan={weeklyPlan}
-            allItems={items}
-            onUpdateDayData={handleUpdateDayInPlan}
-            orderedDays={orderedDaysForDisplay}
-          />
-          <ShoppingList
-            plan={weeklyPlan}
-            manualItems={manualGroceryItems}
-            onAddManualItem={handleAddManualGroceryItem}
-            onDeleteManualItem={handleDeleteManualGroceryItem}
-          />
-          <div className="flex flex-col sm:flex-row justify-end items-center gap-2 non-printable-elements">
-            <Link href="/settings" passHref>
-              <Button variant="outline" size="icon" aria-label="Settings" className="w-full sm:w-auto">
+        {/* Main section (planner + shopping list + action buttons)
+            Each subsection is individually gated on mobile.                 */}
+        <main id="printable-area" className="lg:col-span-2 space-y-4 lg:space-y-6">
+
+          {/* Weekly planner — mobile: 'planner' tab only */}
+          <div className={cn(
+            activeTab === 'planner' ? "block" : "hidden",
+            "lg:block"
+          )}>
+            <WeeklyPlannerGrid
+              plan={weeklyPlan}
+              allItems={items}
+              onUpdateDayData={handleUpdateDayInPlan}
+              orderedDays={orderedDaysForDisplay}
+            />
+          </div>
+
+          {/* Shopping list — mobile: 'shopping' tab only */}
+          <div className={cn(
+            activeTab === 'shopping' ? "block" : "hidden",
+            "lg:block"
+          )}>
+            <ShoppingList
+              plan={weeklyPlan}
+              manualItems={manualGroceryItems}
+              onAddManualItem={handleAddManualGroceryItem}
+              onDeleteManualItem={handleDeleteManualGroceryItem}
+            />
+          </div>
+
+          {/* Print / Export actions — mobile: shown with planner tab */}
+          <div className={cn(
+            "flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 non-printable-elements",
+            activeTab === 'planner' ? "flex" : "hidden",
+            "lg:flex"
+          )}>
+            {/* Settings link shown inline on desktop; on mobile it's in the app bar */}
+            <Link href="/settings" passHref className="hidden lg:block">
+              <Button variant="outline" size="icon" aria-label="Settings">
                 <Settings className="h-5 w-5" />
               </Button>
             </Link>
             <PrintButton />
-            <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} manualGroceryItems={manualGroceryItems} />
+            <ExportButton
+              plan={weeklyPlan}
+              items={items}
+              orderedDays={orderedDaysForDisplay}
+              manualGroceryItems={manualGroceryItems}
+            />
           </div>
         </main>
       </div>
+
+      {/* ── Mobile bottom navigation ───────────────────────────────────────────
+          Fixed to the bottom of the viewport. Hidden on desktop (lg+).
+          Uses env(safe-area-inset-bottom) to clear the iPhone home indicator. */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border non-printable-elements pb-safe"
+        aria-label="Main navigation"
+      >
+        <div className="flex items-stretch h-16">
+          {MOBILE_TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              aria-current={activeTab === id ? 'page' : undefined}
+              className={cn(
+                // Generous touch target: flex-1 of 4 columns on a 360px screen ≈ 90px wide
+                "flex-1 flex flex-col items-center justify-center gap-0.5",
+                "transition-colors duration-150",
+                activeTab === id
+                  ? "text-primary"
+                  : "text-muted-foreground active:text-foreground"
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] font-medium leading-none">{label}</span>
+            </button>
+          ))}
+
+          {/* Settings tab — navigates to the settings page */}
+          <Link
+            href="/settings"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground active:text-foreground transition-colors duration-150"
+          >
+            <Settings className="h-5 w-5" />
+            <span className="text-[11px] font-medium leading-none">Settings</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }

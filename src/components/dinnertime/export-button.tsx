@@ -77,7 +77,7 @@ const ExportButton: FC<ExportButtonProps> = ({ plan, orderedDays, manualGroceryI
   };
 
   return (
-    <Button onClick={handleExport} className="w-full md:w-auto">
+    <Button onClick={handleExport} className="w-full md:w-auto h-11">
       <Download className="mr-2 h-5 w-5" />
       Export Plan & List
     </Button>
