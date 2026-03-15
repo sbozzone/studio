@@ -102,6 +102,15 @@ body {
   select {
     font-size: max(16px, 1em);
   }
+
+  /* ── Press/tap feedback ───────────────────────────────────────────────────
+     Gives every enabled button a subtle scale-down on press so the UI
+     feels tactile and responsive, both on desktop and touch devices.        */
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.97);
+    transition: transform 80ms ease;
+  }
 }
 
 /* ── Safe-area utilities ─────────────────────────────────────────────────────

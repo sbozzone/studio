@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { WeeklyPlan, ManualGroceryItem } from '@/types';
-import { ShoppingCart, PlusCircle, Trash2 } from 'lucide-react';
+import { ShoppingCart, PlusCircle, Trash2, PackageOpen } from 'lucide-react';
 import { aggregatePlanItems } from '@/lib/plan-utils';
 
 interface ShoppingListProps {
@@ -35,7 +35,7 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
   const hasManualItems = manualItems.length > 0;
 
   return (
-    <Card className="shadow-lg flex flex-col animate-fade-up">
+    <Card className="shadow-lg flex flex-col animate-fade-up transition-shadow duration-200 hover:shadow-xl">
       <CardHeader className="pb-3">
         <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
           <ShoppingCart className="mr-2 h-5 w-5 md:h-6 md:w-6 text-primary" />
@@ -89,9 +89,18 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
         )}
 
         {!hasPlannedItems && !hasManualItems && (
-          <p className="text-sm text-muted-foreground py-2">
-            No items planned yet. Fill in the planner and your shopping list will appear here.
-          </p>
+          /* ── Illustrated empty state ──────────────────────────────────── */
+          <div className="flex flex-col items-center gap-3 py-8 text-center animate-fade-up">
+            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+              <PackageOpen className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-medium text-sm text-foreground">Your list is empty</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto leading-relaxed">
+                Plan your meals in the Planner tab — ingredients will appear here automatically
+              </p>
+            </div>
+          </div>
         )}
       </CardContent>
 

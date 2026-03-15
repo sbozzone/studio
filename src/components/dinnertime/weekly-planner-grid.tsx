@@ -13,9 +13,16 @@ interface WeeklyPlannerGridProps {
   orderedDays: DayOfWeek[];
 }
 
+/** Returns today's long-form weekday name, e.g. "Monday". */
+function getTodayName(): DayOfWeek {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()) as DayOfWeek;
+}
+
 const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdateDayData, orderedDays }) => {
+  const todayName = getTodayName();
+
   return (
-    <Card className="shadow-xl animate-fade-up">
+    <Card className="shadow-xl animate-fade-up transition-shadow duration-300 hover:shadow-2xl">
       <CardHeader className="pb-3">
         <CardTitle className="font-headline text-xl md:text-2xl lg:text-3xl text-center flex items-center justify-center">
           <NotebookText className="mr-3 h-6 w-6 md:h-8 md:w-8 text-primary" />
@@ -24,23 +31,29 @@ const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdat
       </CardHeader>
       <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
         {/*
-         * Grid columns:
-         *   mobile (< sm): 1 column — full-width cards for easy scrolling
-         *   sm (≥ 640px):  2 columns
-         *   lg (≥ 1024px): 3 columns
-         *   xl (≥ 1280px): 4 columns
+         * Each DayCard is wrapped in a div that carries:
+         *   1. animate-fade-up  — the entrance keyframe
+         *   2. animationDelay   — staggered so cards appear one after another
+         *      (50 ms per card = 0 ms, 50 ms, 100 ms … 300 ms)
          *
-         * gap-3 on mobile keeps cards close; gap-4 on larger screens adds breathing room.
+         * The animation class on the inner DayCard itself was removed to avoid
+         * doubling up — only the wrapper animates.
          */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-          {orderedDays.map(day => (
-            <DayCard
+          {orderedDays.map((day, index) => (
+            <div
               key={day}
-              day={day}
-              dayData={plan[day]}
-              allItems={allItems}
-              onUpdateDayData={onUpdateDayData}
-            />
+              className="animate-fade-up"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <DayCard
+                day={day}
+                dayData={plan[day]}
+                allItems={allItems}
+                onUpdateDayData={onUpdateDayData}
+                isToday={day === todayName}
+              />
+            </div>
           ))}
         </div>
       </CardContent>

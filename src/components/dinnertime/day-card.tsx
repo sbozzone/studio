@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,35 +11,42 @@ import { Label } from '@/components/ui/label';
 import { Trash2, CalendarDays, StickyNote, Salad, Beef, Utensils, Dices, UtensilsCrossed } from 'lucide-react';
 import type { DayOfWeek, Item, DayPlanData } from '@/types';
 import { EAT_OUT_NOTE } from '@/lib/plan-utils';
+import { cn } from '@/lib/utils';
 
 interface DayCardProps {
   day: DayOfWeek;
   dayData: DayPlanData;
   allItems: Item[];
   onUpdateDayData: (day: DayOfWeek, data: Partial<DayPlanData>) => void;
+  isToday?: boolean;
 }
 
-const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) => {
+/** Fire a lightweight confetti burst to celebrate a lucky meal pick. */
+const fireConfetti = () => {
+  import('canvas-confetti').then(({ default: confetti }) => {
+    confetti({
+      particleCount: 90,
+      spread: 80,
+      origin: { y: 0.55 },
+      colors: ['#FF7F50', '#FFD700', '#FF6B6B', '#4ecdc4', '#45b7d1', '#a8edea'],
+      disableForReducedMotion: true,
+    });
+  }).catch(() => {/* silently ignore if confetti fails to load */});
+};
+
+const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData, isToday = false }) => {
   const entreeItems = allItems.filter(item => item.type === 'entree');
   const sideItems = allItems.filter(item => item.type === 'side');
 
-  /**
-   * Handles all item slot changes, including the special "eat-out" and
-   * "feeling-lucky" virtual options. Also clears the eat-out note when the
-   * user actively picks a real entree (or clears the slot).
-   */
   const handleItemSelectChange = (
     itemSlot: 'entree' | 'side1' | 'side2',
     itemId: string
   ) => {
-    // If selecting anything for the entree slot and the eat-out note is set,
-    // clear the note so it doesn't linger.
     const shouldClearNote = itemSlot === 'entree' && dayData.note === EAT_OUT_NOTE;
     const buildUpdate = (slotValue: Item | null): Partial<DayPlanData> =>
       shouldClearNote ? { [itemSlot]: slotValue, note: '' } : { [itemSlot]: slotValue };
 
     if (itemSlot === 'entree' && itemId === 'eat-out') {
-      // Mark the whole day as eating out
       onUpdateDayData(day, { entree: null, side1: null, side2: null, note: EAT_OUT_NOTE });
     } else if (itemId === 'none' || itemId === '') {
       onUpdateDayData(day, buildUpdate(null));
@@ -46,6 +54,8 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
       const pool = itemSlot === 'entree' ? entreeItems : sideItems;
       const luckyItem = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
       onUpdateDayData(day, buildUpdate(luckyItem));
+      // Celebrate a successful lucky pick with confetti!
+      if (luckyItem) fireConfetti();
     } else {
       const selectedItem = allItems.find(item => item.id === itemId) ?? null;
       onUpdateDayData(day, buildUpdate(selectedItem));
@@ -56,10 +66,6 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
     onUpdateDayData(day, { note: event.target.value });
   };
 
-  /**
-   * Renders a labelled select + optional clear button for one meal slot.
-   * The clear button uses h-11 w-11 (44px) to meet touch-target guidelines.
-   */
   const createItemSelector = (
     slot: 'entree' | 'side1' | 'side2',
     label: string,
@@ -83,7 +89,6 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
           name={`${day}-${slot}-select`}
           aria-label={`Select ${label.toLowerCase()} for ${day}`}
         >
-          {/* SelectTrigger height h-11 = 44px — minimum comfortable touch target */}
           <SelectTrigger id={`${day}-${slot}`} className="day-card-select-trigger w-full h-11">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
@@ -111,7 +116,6 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
           </SelectContent>
         </Select>
 
-        {/* Clear button — h-11 w-11 ensures a comfortable 44px touch target */}
         {currentValue && (
           <Button
             variant="ghost"
@@ -128,17 +132,42 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
   );
 
   return (
-    <Card className="flex flex-col">
+    <Card
+      className={cn(
+        "flex flex-col transition-all duration-200",
+        // Subtle hover lift on desktop
+        "hover:shadow-md hover:-translate-y-0.5",
+        // Today: coral ring + slightly elevated shadow
+        isToday
+          ? "ring-2 ring-primary/70 shadow-md shadow-primary/10 border-primary/30"
+          : ""
+      )}
+    >
       <CardHeader className="pb-2 pt-3 px-4">
-        <CardTitle className="font-headline text-base md:text-lg flex items-center">
-          <CalendarDays className="mr-2 h-4 w-4 md:h-5 md:w-5 text-primary opacity-70" />
-          {day}
+        <CardTitle className="font-headline text-base md:text-lg flex items-center justify-between gap-2">
+          <span className="flex items-center min-w-0">
+            <CalendarDays
+              className={cn(
+                "mr-2 h-4 w-4 md:h-5 md:w-5 flex-shrink-0 opacity-70",
+                isToday ? "text-primary" : "text-primary"
+              )}
+            />
+            <span className={cn(isToday ? "text-primary" : "")}>{day}</span>
+          </span>
+          {isToday && (
+            <Badge
+              variant="default"
+              className="text-[10px] px-2 py-0.5 font-semibold tracking-wide flex-shrink-0 bg-primary text-primary-foreground"
+            >
+              Today
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow space-y-3 px-4 pb-4">
-        {createItemSelector('entree', 'Entree', Beef,     'Select an entree…',      dayData.entree, entreeItems)}
-        {createItemSelector('side1',  'Side 1', Salad,    'Select a side…',         dayData.side1,  sideItems)}
-        {createItemSelector('side2',  'Side 2', Utensils, 'Select another side…',   dayData.side2,  sideItems)}
+        {createItemSelector('entree', 'Entree', Beef,     'Select an entree…',    dayData.entree, entreeItems)}
+        {createItemSelector('side1',  'Side 1', Salad,    'Select a side…',       dayData.side1,  sideItems)}
+        {createItemSelector('side2',  'Side 2', Utensils, 'Select another side…', dayData.side2,  sideItems)}
 
         <div className="space-y-1 day-card-note-area pt-1">
           <Label
@@ -154,7 +183,7 @@ const DayCard: FC<DayCardProps> = ({ day, dayData, allItems, onUpdateDayData }) 
             value={dayData.note}
             onChange={handleNoteChange}
             rows={2}
-            className="text-sm resize-none"
+            className="text-sm resize-none transition-shadow focus:shadow-sm"
           />
         </div>
       </CardContent>
