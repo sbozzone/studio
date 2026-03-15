@@ -1,5 +1,4 @@
-
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -7,11 +6,18 @@ export const metadata: Metadata = {
   title: 'DinnerTime - Weekly Meal Planner',
   description: 'Plan your weekly dinners with ease.',
   icons: {
-    icon: '/favicon.ico', // Points to /public/favicon.ico
-    // You can add other types like:
-    // apple: '/apple-touch-icon.png', // Points to /public/apple-touch-icon.png
-    // shortcut: '/favicon-16x16.png', // Points to /public/favicon-16x16.png
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
+};
+
+// Separate viewport export — required by Next.js 14+ for proper mobile scaling
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,        // Prevents iOS auto-zoom on input focus
+  userScalable: false,
+  themeColor: '#FF7F50',  // Warm Coral — colours the browser chrome on Android/iOS
 };
 
 export default function RootLayout({
@@ -19,11 +25,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log('[Layout Server Component] Checking Firebase Project ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Next.js will automatically handle link tags for favicons defined in metadata */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />

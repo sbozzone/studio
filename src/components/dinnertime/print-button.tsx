@@ -18,7 +18,7 @@ const PrintButton: FC = () => {
   };
 
   return (
-    <Button onClick={handlePrint} className="w-full md:w-auto" variant="outline">
+    <Button onClick={handlePrint} className="w-full md:w-auto h-11" variant="outline">
       <Printer className="mr-2 h-5 w-5" />
       Print Plan & List
     </Button>
