@@ -5,7 +5,7 @@ import type { FC } from 'react';
 import DayCard from './day-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { DayOfWeek, WeeklyPlan, Item, DayPlanData } from '@/types';
-import { NotebookText, Loader2 } from 'lucide-react';
+import { NotebookText } from 'lucide-react';
 
 interface WeeklyPlannerGridProps {
   plan: WeeklyPlan;
@@ -25,7 +25,7 @@ const WeeklyPlannerGrid: FC<WeeklyPlannerGridProps> = ({ plan, allItems, onUpdat
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {orderedDays.map((day, index) => (
+          {orderedDays.map((day) => (
             <DayCard
               key={day}
               day={day}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,150 +13,105 @@ import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, DayPlanData, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
 import { ChefHat, Settings } from 'lucide-react';
-
-const getRotatedDays = (): DayOfWeek[] => {
-  const todayIndex = new Date().getDay();
-  const startIndexInDaysOfWeek = (todayIndex === 0) ? 6 : todayIndex - 1;
-  return [
-    ...DAYS_OF_WEEK.slice(startIndexInDaysOfWeek),
-    ...DAYS_OF_WEEK.slice(0, startIndexInDaysOfWeek)
-  ];
-};
-
-const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-  acc[day] = { entree: null, side1: null, side2: null, note: '' };
-  return acc;
-}, {} as WeeklyPlan);
+import {
+  loadItems, saveItems,
+  loadWeeklyPlanRaw, saveWeeklyPlan,
+  loadFamilyName, saveFamilyName,
+  loadCustomSubtitle, saveCustomSubtitle,
+  loadManualGroceryItems, saveManualGroceryItems,
+  STORAGE_KEYS,
+} from '@/lib/storage';
+import {
+  createEmptyPlan,
+  getRotatedDays,
+  isDuplicateItem,
+  migrateLegacyPlan,
+} from '@/lib/plan-utils';
 
 const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(createEmptyPlan());
   const [familyName, setFamilyName] = useState<string>('My');
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
-  
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
-
   const [manualGroceryItems, setManualGroceryItems] = useState<ManualGroceryItem[]>([]);
 
   const { toast } = useToast();
 
+  // ── Hydration guard ──────────────────────────────────────────────────────────
+  // Next.js renders on the server first. We only access localStorage after
+  // the component mounts on the client.
   useEffect(() => {
     setIsClient(true);
   }, []);
-  
+
+  // ── Initial load from localStorage ──────────────────────────────────────────
   useEffect(() => {
-    if (isClient) {
-        setOrderedDaysForDisplay(getRotatedDays());
+    if (!isClient) return;
 
-        const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-        if (storedFamilyName) setFamilyName(storedFamilyName);
-        else setFamilyName('My');
+    // Start showing today's day first in the planner grid
+    setOrderedDaysForDisplay(getRotatedDays());
 
-        const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
-        if (storedSubtitle) setCustomSubtitle(storedSubtitle);
-        else setCustomSubtitle(DEFAULT_SUBTITLE);
+    setFamilyName(loadFamilyName());
+    setCustomSubtitle(loadCustomSubtitle(DEFAULT_SUBTITLE));
+    setItems(loadItems());
+    setManualGroceryItems(loadManualGroceryItems());
 
-        const storedItems = localStorage.getItem('dinnertime_items');
-        if (storedItems) setItems(JSON.parse(storedItems));
-        
-        const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
-        if (storedPlan) {
-          try {
-            const parsedPlan = JSON.parse(storedPlan);
-            const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-              acc[day] = { entree: null, side1: null, side2: null, note: '' }; 
-              const dayData = parsedPlan[day];
-
-              if (dayData) {
-                if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
-                  acc[day].entree = dayData.entree || null;
-                  acc[day].side1 = dayData.side1 || null;
-                  acc[day].side2 = dayData.side2 || null;
-                  acc[day].note = dayData.note || '';
-                } 
-                else if (dayData.hasOwnProperty('item')) {
-                  const oldItem = dayData.item as Item | null;
-                  if (oldItem) {
-                    if (oldItem.type === 'entree') {
-                      acc[day].entree = oldItem;
-                    } else if (oldItem.type === 'side') {
-                      acc[day].side1 = oldItem; 
-                    }
-                  }
-                  acc[day].note = dayData.note || '';
-                }
-                else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
-                     const oldSingleItem = dayData as Item;
-                     if (oldSingleItem.type === 'entree') {
-                        acc[day].entree = oldSingleItem;
-                     } else if (oldSingleItem.type === 'side') {
-                        acc[day].side1 = oldSingleItem;
-                     }
-                }
-              }
-              return acc;
-            }, {} as WeeklyPlan);
-            setWeeklyPlan(migratedPlan);
-          } catch (e) {
-            console.error("Failed to parse or migrate weekly plan from localStorage", e);
-            setWeeklyPlan(initialWeeklyPlan);
-          }
-        } else {
-          setWeeklyPlan(initialWeeklyPlan);
-        }
-
-        const storedManualGroceryItems = localStorage.getItem('dinnertime_manualGroceryItems');
-        if (storedManualGroceryItems) setManualGroceryItems(JSON.parse(storedManualGroceryItems));
+    // Weekly plan needs migration in case the stored format is from an older version
+    const raw = loadWeeklyPlanRaw();
+    if (raw) {
+      try {
+        setWeeklyPlan(migrateLegacyPlan(raw));
+      } catch (e) {
+        console.error("Failed to migrate weekly plan from localStorage", e);
+        setWeeklyPlan(createEmptyPlan());
+      }
+    } else {
+      setWeeklyPlan(createEmptyPlan());
     }
   }, [isClient]);
 
-
+  // ── Cross-tab sync ───────────────────────────────────────────────────────────
+  // When the settings page (a different tab) updates family name, subtitle, or
+  // items via a synthetic StorageEvent, this listener picks up the changes.
   useEffect(() => {
     if (!isClient) return;
+
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'dinnertime_familyName') {
-        setFamilyName(event.newValue !== null ? event.newValue : 'My');
-      } else if (event.key === 'dinnertime_customSubtitle') {
-        setCustomSubtitle(event.newValue !== null ? event.newValue : DEFAULT_SUBTITLE);
-      } else if (event.key === 'dinnertime_items') {
-        if (event.newValue !== null) {
-            try {
-                const newItems = JSON.parse(event.newValue);
-                setItems(newItems);
-            } catch (e) {
-                console.error("Error parsing items from storage event", e);
-            }
+      if (event.key === STORAGE_KEYS.familyName) {
+        setFamilyName(event.newValue ?? 'My');
+      } else if (event.key === STORAGE_KEYS.customSubtitle) {
+        setCustomSubtitle(event.newValue ?? DEFAULT_SUBTITLE);
+      } else if (event.key === STORAGE_KEYS.items && event.newValue !== null) {
+        try {
+          setItems(JSON.parse(event.newValue));
+        } catch (e) {
+          console.error("Error parsing items from storage event", e);
         }
       }
     };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [isClient]);
 
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
-  }, [items, isClient]);
+  // ── Persist state to localStorage on change ──────────────────────────────────
+  useEffect(() => { if (isClient) saveItems(items); }, [items, isClient]);
+  useEffect(() => { if (isClient) saveWeeklyPlan(weeklyPlan); }, [weeklyPlan, isClient]);
+  useEffect(() => { if (isClient) saveManualGroceryItems(manualGroceryItems); }, [manualGroceryItems, isClient]);
 
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
-  }, [weeklyPlan, isClient]);
-
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_manualGroceryItems', JSON.stringify(manualGroceryItems));
-  }, [manualGroceryItems, isClient]);
+  // ── Item handlers ────────────────────────────────────────────────────────────
 
   const handleAddItem = (newItem: Item) => {
-    if (!items.some(item => item.name.toLowerCase() === newItem.name.toLowerCase() && item.type === newItem.type)) {
-      setItems((prev) => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
-      toast({ title: "Item Added!", description: `"${newItem.name} (${newItem.type})" has been added.` });
-    } else {
+    if (isDuplicateItem(newItem, items)) {
       toast({ title: "Already Exists", description: `"${newItem.name} (${newItem.type})" is already in your list.`, variant: "destructive" });
+      return;
     }
+    setItems((prev) => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
+    toast({ title: "Item Added!", description: `"${newItem.name} (${newItem.type})" has been added.` });
   };
 
   const handleEditItemName = (itemId: string, newName: string) => {
@@ -170,11 +124,7 @@ export default function DinnerTimePage() {
     const originalItem = items.find(i => i.id === itemId);
     if (!originalItem) return;
 
-    const isDuplicate = items.some(
-      item => item.id !== itemId && item.name.toLowerCase() === trimmedNewName.toLowerCase() && item.type === originalItem.type
-    );
-
-    if (isDuplicate) {
+    if (isDuplicateItem({ name: trimmedNewName, type: originalItem.type }, items, itemId)) {
       toast({
         title: "Name Already Exists",
         description: `An item named "${trimmedNewName}" of type "${originalItem.type}" already exists.`,
@@ -183,32 +133,24 @@ export default function DinnerTimePage() {
       return;
     }
 
-    setItems(prevItems =>
-      prevItems
+    // Update the item list
+    setItems(prev =>
+      prev
         .map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
         .sort((a, b) => a.name.localeCompare(b.name))
     );
 
+    // Also update any occurrences already placed in the weekly plan so they
+    // reflect the new name immediately without a page reload.
     setWeeklyPlan(prevPlan => {
       const updatedPlan = { ...prevPlan };
       for (const day of DAYS_OF_WEEK) {
         const dayData = { ...updatedPlan[day] };
         let changed = false;
-        if (dayData.entree?.id === itemId) {
-          dayData.entree = { ...dayData.entree, name: trimmedNewName };
-          changed = true;
-        }
-        if (dayData.side1?.id === itemId) {
-          dayData.side1 = { ...dayData.side1, name: trimmedNewName };
-          changed = true;
-        }
-        if (dayData.side2?.id === itemId) {
-          dayData.side2 = { ...dayData.side2, name: trimmedNewName };
-          changed = true;
-        }
-        if (changed) {
-          updatedPlan[day] = dayData;
-        }
+        if (dayData.entree?.id === itemId) { dayData.entree = { ...dayData.entree, name: trimmedNewName }; changed = true; }
+        if (dayData.side1?.id === itemId)  { dayData.side1  = { ...dayData.side1,  name: trimmedNewName }; changed = true; }
+        if (dayData.side2?.id === itemId)  { dayData.side2  = { ...dayData.side2,  name: trimmedNewName }; changed = true; }
+        if (changed) updatedPlan[day] = dayData;
       }
       return updatedPlan;
     });
@@ -219,49 +161,38 @@ export default function DinnerTimePage() {
   const handleDeleteItem = (itemIdToDelete: string) => {
     const itemToDelete = items.find(i => i.id === itemIdToDelete);
     if (!itemToDelete) return;
+
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
-    
+
+    // Clear the deleted item from any day it was placed on
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
     for (const day of DAYS_OF_WEEK) {
+      const current = { ...updatedPlan[day] };
       let dayModified = false;
-      const currentDayPlan = updatedPlan[day];
-      const newDayPlanData = { ...currentDayPlan };
-
-      if (newDayPlanData.entree?.id === itemIdToDelete) {
-        newDayPlanData.entree = null;
-        dayModified = true;
-      }
-      if (newDayPlanData.side1?.id === itemIdToDelete) {
-        newDayPlanData.side1 = null;
-        dayModified = true;
-      }
-      if (newDayPlanData.side2?.id === itemIdToDelete) {
-        newDayPlanData.side2 = null;
-        dayModified = true;
-      }
-
-      if (dayModified) {
-        updatedPlan[day] = newDayPlanData;
-        planChanged = true;
-      }
+      if (current.entree?.id === itemIdToDelete) { current.entree = null; dayModified = true; }
+      if (current.side1?.id === itemIdToDelete)  { current.side1  = null; dayModified = true; }
+      if (current.side2?.id === itemIdToDelete)  { current.side2  = null; dayModified = true; }
+      if (dayModified) { updatedPlan[day] = current; planChanged = true; }
     }
     if (planChanged) setWeeklyPlan(updatedPlan);
-    toast({ title: "Item Deleted", description: `"${itemToDelete.name}" has been removed.`});
+
+    toast({ title: "Item Deleted", description: `"${itemToDelete.name}" has been removed.` });
   };
+
+  // ── Plan handler ─────────────────────────────────────────────────────────────
 
   const handleUpdateDayInPlan = useCallback((day: DayOfWeek, newDayData: Partial<DayPlanData>) => {
     setWeeklyPlan(prev => ({
       ...prev,
-      [day]: {
-        ...prev[day],
-        ...newDayData,
-      }
+      [day]: { ...prev[day], ...newDayData },
     }));
   }, []);
 
+  // ── Manual grocery item handlers ─────────────────────────────────────────────
+
   const handleAddManualGroceryItem = (name: string) => {
-    if (name.trim() === '') {
+    if (!name.trim()) {
       toast({ title: "Cannot Add Empty Item", description: "Please enter a name for the grocery item.", variant: "destructive" });
       return;
     }
@@ -274,10 +205,12 @@ export default function DinnerTimePage() {
     const itemToDelete = manualGroceryItems.find(item => item.id === id);
     setManualGroceryItems(prev => prev.filter(item => item.id !== id));
     if (itemToDelete) {
-        toast({ title: "Grocery Item Removed", description: `"${itemToDelete.name}" removed from your shopping list.` });
+      toast({ title: "Grocery Item Removed", description: `"${itemToDelete.name}" removed from your shopping list.` });
     }
   };
-  
+
+  // ── Loading state ────────────────────────────────────────────────────────────
+
   if (!isClient) {
     return (
       <div className="flex justify-center items-center min-h-screen non-printable-elements">
@@ -286,6 +219,8 @@ export default function DinnerTimePage() {
       </div>
     );
   }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
