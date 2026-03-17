@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FC } from 'react';
@@ -7,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { WeeklyPlan, Item, DayPlanData, ManualGroceryItem } from '@/types';
-import { ShoppingCart, PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import type { WeeklyPlan, ManualGroceryItem } from '@/types';
+import { ShoppingCart, PlusCircle, Trash2, PackageOpen } from 'lucide-react';
+import { aggregatePlanItems } from '@/lib/plan-utils';
 
 interface ShoppingListProps {
   plan: WeeklyPlan;
@@ -28,49 +28,28 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
     }
   };
 
-  const plannedItems: Item[] = [];
-  Object.values(plan).forEach((dayData: DayPlanData) => {
-    if (dayData.entree) plannedItems.push(dayData.entree);
-    if (dayData.side1) plannedItems.push(dayData.side1);
-    if (dayData.side2) plannedItems.push(dayData.side2);
-  });
-  
-  const itemCounts: Record<string, { count: number; type: string }> = {};
-  plannedItems.forEach(item => {
-    if (!item) return; // Should not happen if logic above is correct
-    const key = `${item.name} (${item.type})`;
-    if (itemCounts[key]) {
-      itemCounts[key].count++;
-    } else {
-      itemCounts[key] = { count: 1, type: item.type };
-    }
-  });
+  // Shared utility keeps this list in sync with the export
+  const plannedItems = aggregatePlanItems(plan);
 
-  const uniquePlannedItemsWithCounts = Object.entries(itemCounts)
-    .map(([nameAndType, data]) => ({
-      displayText: nameAndType,
-      count: data.count,
-    }))
-    .sort((a, b) => a.displayText.localeCompare(b.displayText));
-
-  const hasPlannedItems = uniquePlannedItemsWithCounts.length > 0;
+  const hasPlannedItems = plannedItems.length > 0;
   const hasManualItems = manualItems.length > 0;
 
   return (
-    <Card className="shadow-lg flex flex-col">
-      <CardHeader>
+    <Card className="shadow-lg flex flex-col animate-fade-up transition-shadow duration-200 hover:shadow-xl">
+      <CardHeader className="pb-3">
         <CardTitle className="font-headline text-xl md:text-2xl flex items-center">
-          <ShoppingCart className="mr-2 h-6 w-6 text-primary" />
+          <ShoppingCart className="mr-2 h-5 w-5 md:h-6 md:w-6 text-primary" />
           Shopping List
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow space-y-4">
+
+      <CardContent className="flex-grow space-y-4 px-4">
         {hasPlannedItems && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">From Your Plan:</h3>
             <ul className="space-y-1">
-              {uniquePlannedItemsWithCounts.map(item => (
-                <li key={item.displayText} className="text-foreground shopping-list-item">
+              {plannedItems.map(item => (
+                <li key={item.displayText} className="text-foreground shopping-list-item py-0.5">
                   {item.displayText} {item.count > 1 ? `(x${item.count})` : ''}
                 </li>
               ))}
@@ -78,21 +57,26 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
           </div>
         )}
 
-        {(hasPlannedItems && hasManualItems) && <Separator className="my-4" />}
+        {hasPlannedItems && hasManualItems && <Separator className="my-2" />}
 
         {hasManualItems && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">Manual Additions:</h3>
-             <ScrollArea className={manualItems.length > 5 ? "h-32" : ""}>
-              <ul className="space-y-1">
+            {/* ScrollArea kicks in when the list gets long on smaller viewports */}
+            <ScrollArea className={manualItems.length > 5 ? "h-40 md:h-32" : ""}>
+              <ul className="space-y-0.5">
                 {manualItems.map(item => (
-                  <li key={item.id} className="flex justify-between items-center text-foreground shopping-list-item manual-grocery-item py-1">
-                    <span>{item.name}</span>
+                  <li
+                    key={item.id}
+                    className="flex justify-between items-center text-foreground shopping-list-item manual-grocery-item py-1.5"
+                  >
+                    <span className="text-sm">{item.name}</span>
+                    {/* h-10 w-10 = 40px — adequate touch target for a list-row delete */}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onDeleteManualItem(item.id)}
-                      className="text-destructive hover:text-destructive button-no-print h-auto p-1"
+                      className="text-destructive hover:text-destructive button-no-print h-10 w-10 p-0 flex-shrink-0"
                       aria-label={`Remove ${item.name}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -104,29 +88,42 @@ const ShoppingList: FC<ShoppingListProps> = ({ plan, manualItems, onAddManualIte
           </div>
         )}
 
-        {(!hasPlannedItems && !hasManualItems) && (
-          <p className="text-muted-foreground">No items planned or added yet to generate a shopping list.</p>
+        {!hasPlannedItems && !hasManualItems && (
+          /* ── Illustrated empty state ──────────────────────────────────── */
+          <div className="flex flex-col items-center gap-3 py-8 text-center animate-fade-up">
+            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+              <PackageOpen className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-medium text-sm text-foreground">Your list is empty</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto leading-relaxed">
+                Plan your meals in the Planner tab — ingredients will appear here automatically
+              </p>
+            </div>
+          </div>
         )}
       </CardContent>
-      <CardFooter className="border-t pt-4 non-printable-elements">
+
+      <CardFooter className="border-t pt-4 pb-4 px-4 non-printable-elements">
         <div className="w-full space-y-2">
-            <div className="flex gap-2">
+          <div className="flex gap-2">
             <Input
-                type="text"
-                placeholder="Add custom item (e.g., Milk)"
-                value={manualItemName}
-                onChange={(e) => setManualItemName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddClick()}
-                aria-label="Add manual grocery item"
-                className="flex-grow"
+              type="text"
+              placeholder="Add custom item (e.g., Milk)"
+              value={manualItemName}
+              onChange={e => setManualItemName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddClick()}
+              aria-label="Add manual grocery item"
+              className="flex-grow h-11"
             />
-            <Button onClick={handleAddClick} aria-label="Add item to shopping list">
-                <PlusCircle className="h-5 w-5" />
+            {/* h-11 = 44px touch target */}
+            <Button onClick={handleAddClick} aria-label="Add item to shopping list" className="h-11 w-11 flex-shrink-0 p-0">
+              <PlusCircle className="h-5 w-5" />
             </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-            Planned items are listed above. Add other groceries you need here.
-            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Planned items are above. Add extra groceries here.
+          </p>
         </div>
       </CardFooter>
     </Card>

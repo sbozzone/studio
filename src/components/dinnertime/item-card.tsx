@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FC } from 'react';
@@ -12,7 +11,7 @@ import type { Item } from '@/types';
 
 interface ItemCardProps {
   item: Item;
-  onDeleteItem?: (itemId: string) => void;
+  onDeleteItem: (itemId: string) => void;
   onEditItemName: (itemId: string, newName: string) => void;
 }
 
@@ -21,19 +20,19 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(item.name);
 
+  // Reset edit state if the underlying item changes (e.g. after a save)
   useEffect(() => {
     setEditedName(item.name);
-    setIsEditing(false); 
+    setIsEditing(false);
   }, [item.name, item.id]);
 
-
   const handleEdit = () => {
-    setEditedName(item.name); 
+    setEditedName(item.name);
     setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
-    setEditedName(item.name); 
+    setEditedName(item.name);
     setIsEditing(false);
   };
 
@@ -49,58 +48,81 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
   return (
     <Card className="flex flex-col justify-between">
       <CardHeader className="py-3 px-4">
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-2">
           {isEditing ? (
-            <div className="flex items-center gap-2 w-full pr-2">
+            <div className="flex items-center gap-2 w-full">
               <Icon className="h-4 w-4 text-primary shrink-0" />
               <Input
                 type="text"
                 value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                className="text-lg font-headline h-8 flex-grow"
+                onChange={e => setEditedName(e.target.value)}
+                className="text-base font-headline h-9 flex-grow"
                 autoFocus
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter' && canSave) handleSaveEdit();
                   if (e.key === 'Escape') handleCancelEdit();
                 }}
               />
             </div>
           ) : (
-            <CardTitle className="flex items-center font-headline text-lg">
-              <Icon className="mr-2 h-4 w-4 text-primary" />
+            <CardTitle className="flex items-center font-headline text-base">
+              <Icon className="mr-2 h-4 w-4 text-primary shrink-0" />
               {item.name}
             </CardTitle>
           )}
-          <Badge variant={item.type === 'entree' ? 'default' : 'secondary'} className="capitalize text-xs shrink-0">
+          <Badge
+            variant={item.type === 'entree' ? 'default' : 'secondary'}
+            className="capitalize text-xs shrink-0 self-start mt-0.5"
+          >
             {item.type}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        {/* Content padding removed as it's not used currently. Can be added back if needed. */}
-      </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center py-3 px-4">
+
+      {/* CardContent kept for structural consistency; unused visually */}
+      <CardContent className="p-0" />
+
+      <CardFooter className="flex flex-row gap-2 items-center py-2 px-4">
         {isEditing ? (
           <>
-            <Button onClick={handleSaveEdit} disabled={!canSave} className="flex-grow h-8">
+            <Button
+              onClick={handleSaveEdit}
+              disabled={!canSave}
+              className="flex-grow h-11 text-sm"
+            >
               <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
-            <Button variant="outline" onClick={handleCancelEdit} className="flex-grow h-8">
+            <Button
+              variant="outline"
+              onClick={handleCancelEdit}
+              className="flex-grow h-11 text-sm"
+            >
               <XCircle className="mr-2 h-4 w-4" />
               Cancel
             </Button>
           </>
         ) : (
           <>
-            <Button variant="ghost" size="icon" onClick={handleEdit} aria-label="Edit item name" className="ml-auto h-8 w-8">
-              <Pencil className="h-4 w-4 text-muted-foreground hover:text-accent" />
+            {/* h-11 w-11 = 44px — minimum WCAG touch target size */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleEdit}
+              aria-label="Edit item name"
+              className="ml-auto h-11 w-11"
+            >
+              <Pencil className="h-4 w-4 text-muted-foreground" />
             </Button>
-            {onDeleteItem && (
-              <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label="Delete item" className="h-8 w-8">
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDeleteItem(item.id)}
+              aria-label="Delete item"
+              className="h-11 w-11"
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
           </>
         )}
       </CardFooter>
@@ -109,4 +131,3 @@ const ItemCard: FC<ItemCardProps> = ({ item, onDeleteItem, onEditItemName }) => 
 };
 
 export default ItemCard;
-

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,151 +12,106 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { DayOfWeek, WeeklyPlan, Item, DayPlanData, ManualGroceryItem } from '@/types';
 import { DAYS_OF_WEEK } from '@/types';
-import { ChefHat, Settings } from 'lucide-react';
-
-const getRotatedDays = (): DayOfWeek[] => {
-  const todayIndex = new Date().getDay();
-  const startIndexInDaysOfWeek = (todayIndex === 0) ? 6 : todayIndex - 1;
-  return [
-    ...DAYS_OF_WEEK.slice(startIndexInDaysOfWeek),
-    ...DAYS_OF_WEEK.slice(0, startIndexInDaysOfWeek)
-  ];
-};
-
-const initialWeeklyPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-  acc[day] = { entree: null, side1: null, side2: null, note: '' };
-  return acc;
-}, {} as WeeklyPlan);
+import { ChefHat, Settings, NotebookText, ShoppingCart, Utensils } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  loadItems, saveItems,
+  loadWeeklyPlanRaw, saveWeeklyPlan,
+  loadFamilyName,
+  loadCustomSubtitle,
+  loadManualGroceryItems, saveManualGroceryItems,
+  STORAGE_KEYS,
+} from '@/lib/storage';
+import {
+  createEmptyPlan,
+  getRotatedDays,
+  isDuplicateItem,
+  migrateLegacyPlan,
+} from '@/lib/plan-utils';
 
 const DEFAULT_SUBTITLE = "Effortlessly plan your dinners for the week.";
 
+// ── Mobile bottom-nav tab definitions ─────────────────────────────────────────
+type MobileTab = 'planner' | 'shopping' | 'items';
+
+const MOBILE_TABS: { id: MobileTab; label: string; Icon: React.ElementType }[] = [
+  { id: 'planner',  label: 'Planner',  Icon: NotebookText },
+  { id: 'shopping', label: 'Shopping', Icon: ShoppingCart },
+  { id: 'items',    label: 'Items',    Icon: Utensils },
+];
+
 export default function DinnerTimePage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(initialWeeklyPlan);
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan>(createEmptyPlan());
   const [familyName, setFamilyName] = useState<string>('My');
   const [customSubtitle, setCustomSubtitle] = useState<string>(DEFAULT_SUBTITLE);
-  
   const [isClient, setIsClient] = useState(false);
   const [orderedDaysForDisplay, setOrderedDaysForDisplay] = useState<DayOfWeek[]>(DAYS_OF_WEEK);
-
   const [manualGroceryItems, setManualGroceryItems] = useState<ManualGroceryItem[]>([]);
+  // Which section is visible on mobile (desktop always shows all three)
+  const [activeTab, setActiveTab] = useState<MobileTab>('planner');
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-  
-  useEffect(() => {
-    if (isClient) {
-        setOrderedDaysForDisplay(getRotatedDays());
+  // ── Hydration guard ──────────────────────────────────────────────────────────
+  useEffect(() => { setIsClient(true); }, []);
 
-        const storedFamilyName = localStorage.getItem('dinnertime_familyName');
-        if (storedFamilyName) setFamilyName(storedFamilyName);
-        else setFamilyName('My');
-
-        const storedSubtitle = localStorage.getItem('dinnertime_customSubtitle');
-        if (storedSubtitle) setCustomSubtitle(storedSubtitle);
-        else setCustomSubtitle(DEFAULT_SUBTITLE);
-
-        const storedItems = localStorage.getItem('dinnertime_items');
-        if (storedItems) setItems(JSON.parse(storedItems));
-        
-        const storedPlan = localStorage.getItem('dinnertime_weeklyPlan');
-        if (storedPlan) {
-          try {
-            const parsedPlan = JSON.parse(storedPlan);
-            const migratedPlan = DAYS_OF_WEEK.reduce((acc, day) => {
-              acc[day] = { entree: null, side1: null, side2: null, note: '' }; 
-              const dayData = parsedPlan[day];
-
-              if (dayData) {
-                if (dayData.hasOwnProperty('entree') || dayData.hasOwnProperty('side1') || dayData.hasOwnProperty('side2')) {
-                  acc[day].entree = dayData.entree || null;
-                  acc[day].side1 = dayData.side1 || null;
-                  acc[day].side2 = dayData.side2 || null;
-                  acc[day].note = dayData.note || '';
-                } 
-                else if (dayData.hasOwnProperty('item')) {
-                  const oldItem = dayData.item as Item | null;
-                  if (oldItem) {
-                    if (oldItem.type === 'entree') {
-                      acc[day].entree = oldItem;
-                    } else if (oldItem.type === 'side') {
-                      acc[day].side1 = oldItem; 
-                    }
-                  }
-                  acc[day].note = dayData.note || '';
-                }
-                else if (dayData.hasOwnProperty('id') && dayData.hasOwnProperty('name') && dayData.hasOwnProperty('type')) {
-                     const oldSingleItem = dayData as Item;
-                     if (oldSingleItem.type === 'entree') {
-                        acc[day].entree = oldSingleItem;
-                     } else if (oldSingleItem.type === 'side') {
-                        acc[day].side1 = oldSingleItem;
-                     }
-                }
-              }
-              return acc;
-            }, {} as WeeklyPlan);
-            setWeeklyPlan(migratedPlan);
-          } catch (e) {
-            console.error("Failed to parse or migrate weekly plan from localStorage", e);
-            setWeeklyPlan(initialWeeklyPlan);
-          }
-        } else {
-          setWeeklyPlan(initialWeeklyPlan);
-        }
-
-        const storedManualGroceryItems = localStorage.getItem('dinnertime_manualGroceryItems');
-        if (storedManualGroceryItems) setManualGroceryItems(JSON.parse(storedManualGroceryItems));
-    }
-  }, [isClient]);
-
-
+  // ── Initial load from localStorage ──────────────────────────────────────────
   useEffect(() => {
     if (!isClient) return;
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'dinnertime_familyName') {
-        setFamilyName(event.newValue !== null ? event.newValue : 'My');
-      } else if (event.key === 'dinnertime_customSubtitle') {
-        setCustomSubtitle(event.newValue !== null ? event.newValue : DEFAULT_SUBTITLE);
-      } else if (event.key === 'dinnertime_items') {
-        if (event.newValue !== null) {
-            try {
-                const newItems = JSON.parse(event.newValue);
-                setItems(newItems);
-            } catch (e) {
-                console.error("Error parsing items from storage event", e);
-            }
-        }
+
+    setOrderedDaysForDisplay(getRotatedDays());
+    setFamilyName(loadFamilyName());
+    setCustomSubtitle(loadCustomSubtitle(DEFAULT_SUBTITLE));
+    setItems(loadItems());
+    setManualGroceryItems(loadManualGroceryItems());
+
+    const raw = loadWeeklyPlanRaw();
+    if (raw) {
+      try {
+        setWeeklyPlan(migrateLegacyPlan(raw));
+      } catch (e) {
+        console.error("Failed to migrate weekly plan from localStorage", e);
+        setWeeklyPlan(createEmptyPlan());
       }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    } else {
+      setWeeklyPlan(createEmptyPlan());
+    }
   }, [isClient]);
 
+  // ── Cross-tab sync ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_items', JSON.stringify(items));
-  }, [items, isClient]);
+    if (!isClient) return;
 
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_weeklyPlan', JSON.stringify(weeklyPlan));
-  }, [weeklyPlan, isClient]);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEYS.familyName) {
+        setFamilyName(event.newValue ?? 'My');
+      } else if (event.key === STORAGE_KEYS.customSubtitle) {
+        setCustomSubtitle(event.newValue ?? DEFAULT_SUBTITLE);
+      } else if (event.key === STORAGE_KEYS.items && event.newValue !== null) {
+        try { setItems(JSON.parse(event.newValue)); }
+        catch (e) { console.error("Error parsing items from storage event", e); }
+      }
+    };
 
-  useEffect(() => {
-    if(isClient) localStorage.setItem('dinnertime_manualGroceryItems', JSON.stringify(manualGroceryItems));
-  }, [manualGroceryItems, isClient]);
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isClient]);
+
+  // ── Persist state to localStorage on change ──────────────────────────────────
+  useEffect(() => { if (isClient) saveItems(items); }, [items, isClient]);
+  useEffect(() => { if (isClient) saveWeeklyPlan(weeklyPlan); }, [weeklyPlan, isClient]);
+  useEffect(() => { if (isClient) saveManualGroceryItems(manualGroceryItems); }, [manualGroceryItems, isClient]);
+
+  // ── Item handlers ────────────────────────────────────────────────────────────
 
   const handleAddItem = (newItem: Item) => {
-    if (!items.some(item => item.name.toLowerCase() === newItem.name.toLowerCase() && item.type === newItem.type)) {
-      setItems((prev) => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
-      toast({ title: "Item Added!", description: `"${newItem.name} (${newItem.type})" has been added.` });
-    } else {
+    if (isDuplicateItem(newItem, items)) {
       toast({ title: "Already Exists", description: `"${newItem.name} (${newItem.type})" is already in your list.`, variant: "destructive" });
+      return;
     }
+    setItems(prev => [...prev, newItem].sort((a, b) => a.name.localeCompare(b.name)));
+    toast({ title: "Item Added!", description: `"${newItem.name} (${newItem.type})" has been added.` });
   };
 
   const handleEditItemName = (itemId: string, newName: string) => {
@@ -166,15 +120,10 @@ export default function DinnerTimePage() {
       toast({ title: "Invalid Name", description: "Item name cannot be empty.", variant: "destructive" });
       return;
     }
-
     const originalItem = items.find(i => i.id === itemId);
     if (!originalItem) return;
 
-    const isDuplicate = items.some(
-      item => item.id !== itemId && item.name.toLowerCase() === trimmedNewName.toLowerCase() && item.type === originalItem.type
-    );
-
-    if (isDuplicate) {
+    if (isDuplicateItem({ name: trimmedNewName, type: originalItem.type }, items, itemId)) {
       toast({
         title: "Name Already Exists",
         description: `An item named "${trimmedNewName}" of type "${originalItem.type}" already exists.`,
@@ -183,10 +132,9 @@ export default function DinnerTimePage() {
       return;
     }
 
-    setItems(prevItems =>
-      prevItems
-        .map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
-        .sort((a, b) => a.name.localeCompare(b.name))
+    setItems(prev =>
+      prev.map(i => (i.id === itemId ? { ...i, name: trimmedNewName } : i))
+          .sort((a, b) => a.name.localeCompare(b.name))
     );
 
     setWeeklyPlan(prevPlan => {
@@ -194,21 +142,10 @@ export default function DinnerTimePage() {
       for (const day of DAYS_OF_WEEK) {
         const dayData = { ...updatedPlan[day] };
         let changed = false;
-        if (dayData.entree?.id === itemId) {
-          dayData.entree = { ...dayData.entree, name: trimmedNewName };
-          changed = true;
-        }
-        if (dayData.side1?.id === itemId) {
-          dayData.side1 = { ...dayData.side1, name: trimmedNewName };
-          changed = true;
-        }
-        if (dayData.side2?.id === itemId) {
-          dayData.side2 = { ...dayData.side2, name: trimmedNewName };
-          changed = true;
-        }
-        if (changed) {
-          updatedPlan[day] = dayData;
-        }
+        if (dayData.entree?.id === itemId) { dayData.entree = { ...dayData.entree, name: trimmedNewName }; changed = true; }
+        if (dayData.side1?.id === itemId)  { dayData.side1  = { ...dayData.side1,  name: trimmedNewName }; changed = true; }
+        if (dayData.side2?.id === itemId)  { dayData.side2  = { ...dayData.side2,  name: trimmedNewName }; changed = true; }
+        if (changed) updatedPlan[day] = dayData;
       }
       return updatedPlan;
     });
@@ -219,49 +156,37 @@ export default function DinnerTimePage() {
   const handleDeleteItem = (itemIdToDelete: string) => {
     const itemToDelete = items.find(i => i.id === itemIdToDelete);
     if (!itemToDelete) return;
+
     setItems(prev => prev.filter(i => i.id !== itemIdToDelete));
-    
+
     const updatedPlan = { ...weeklyPlan };
     let planChanged = false;
     for (const day of DAYS_OF_WEEK) {
+      const current = { ...updatedPlan[day] };
       let dayModified = false;
-      const currentDayPlan = updatedPlan[day];
-      const newDayPlanData = { ...currentDayPlan };
-
-      if (newDayPlanData.entree?.id === itemIdToDelete) {
-        newDayPlanData.entree = null;
-        dayModified = true;
-      }
-      if (newDayPlanData.side1?.id === itemIdToDelete) {
-        newDayPlanData.side1 = null;
-        dayModified = true;
-      }
-      if (newDayPlanData.side2?.id === itemIdToDelete) {
-        newDayPlanData.side2 = null;
-        dayModified = true;
-      }
-
-      if (dayModified) {
-        updatedPlan[day] = newDayPlanData;
-        planChanged = true;
-      }
+      if (current.entree?.id === itemIdToDelete) { current.entree = null; dayModified = true; }
+      if (current.side1?.id === itemIdToDelete)  { current.side1  = null; dayModified = true; }
+      if (current.side2?.id === itemIdToDelete)  { current.side2  = null; dayModified = true; }
+      if (dayModified) { updatedPlan[day] = current; planChanged = true; }
     }
     if (planChanged) setWeeklyPlan(updatedPlan);
-    toast({ title: "Item Deleted", description: `"${itemToDelete.name}" has been removed.`});
+
+    toast({ title: "Item Deleted", description: `"${itemToDelete.name}" has been removed.` });
   };
+
+  // ── Plan handler ─────────────────────────────────────────────────────────────
 
   const handleUpdateDayInPlan = useCallback((day: DayOfWeek, newDayData: Partial<DayPlanData>) => {
     setWeeklyPlan(prev => ({
       ...prev,
-      [day]: {
-        ...prev[day],
-        ...newDayData,
-      }
+      [day]: { ...prev[day], ...newDayData },
     }));
   }, []);
 
+  // ── Manual grocery handlers ──────────────────────────────────────────────────
+
   const handleAddManualGroceryItem = (name: string) => {
-    if (name.trim() === '') {
+    if (!name.trim()) {
       toast({ title: "Cannot Add Empty Item", description: "Please enter a name for the grocery item.", variant: "destructive" });
       return;
     }
@@ -274,33 +199,74 @@ export default function DinnerTimePage() {
     const itemToDelete = manualGroceryItems.find(item => item.id === id);
     setManualGroceryItems(prev => prev.filter(item => item.id !== id));
     if (itemToDelete) {
-        toast({ title: "Grocery Item Removed", description: `"${itemToDelete.name}" removed from your shopping list.` });
+      toast({ title: "Grocery Item Removed", description: `"${itemToDelete.name}" removed from your shopping list.` });
     }
   };
-  
+
+  // ── Loading state ────────────────────────────────────────────────────────────
+
   if (!isClient) {
     return (
-      <div className="flex justify-center items-center min-h-screen non-printable-elements">
-        <ChefHat className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-xl font-headline">Loading DinnerTime...</p>
+      <div className="flex flex-col justify-center items-center min-h-screen gap-4 non-printable-elements">
+        <ChefHat className="h-12 w-12 animate-gentle-pulse text-primary" />
+        <p className="text-lg font-headline text-muted-foreground">Loading DinnerTime…</p>
       </div>
     );
   }
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
-    <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <header className="text-center py-8 non-printable-elements space-y-4">
+    // pb-24 leaves room for the fixed bottom nav on mobile (h-16 + safe-area).
+    // lg:pb-8 restores normal padding when the bottom nav is hidden.
+    <div className="container mx-auto py-3 pb-24 lg:py-8 lg:pb-8 space-y-4 lg:space-y-8 animate-fade-up">
+
+      {/* ── Mobile app bar (hidden on desktop) ────────────────────────────────
+          A slim sticky header with the branding on the left and a settings
+          shortcut on the right — standard mobile app-bar pattern.           */}
+      <div className="lg:hidden flex items-center justify-between py-1 non-printable-elements">
+        <div className="flex items-center gap-2 min-w-0">
+          <ChefHat className="h-7 w-7 text-primary flex-shrink-0" />
+          <h1 className="text-xl font-headline text-primary truncate leading-tight">
+            {familyName ? `${familyName}'s` : "My"} DinnerTime
+          </h1>
+        </div>
+        <Link href="/settings" passHref>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            className="h-11 w-11 flex-shrink-0 ml-2"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </Link>
+      </div>
+
+      {/* ── Desktop header (hidden on mobile) ─────────────────────────────── */}
+      <header className="hidden lg:block text-center py-8 non-printable-elements space-y-4">
         <div className="flex items-center justify-center">
           <ChefHat className="mr-4 h-12 w-12 md:h-16 md:w-16 text-primary" />
           <h1 className="text-5xl md:text-6xl font-headline text-primary">
-            {familyName ? familyName + "'s" : "My"} DinnerTime
+            {familyName ? `${familyName}'s` : "My"} DinnerTime
           </h1>
         </div>
         <p className="text-base md:text-lg text-muted-foreground mt-2">{customSubtitle}</p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <aside className="lg:col-span-1 space-y-6">
+      {/* ── Main content area ─────────────────────────────────────────────────
+          Mobile: one section visible at a time, controlled by activeTab.
+          Desktop: all three columns visible simultaneously in a grid.       */}
+      <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+
+        {/* Items sidebar
+            Mobile: visible only on the 'items' tab.
+            Desktop: always visible in the left column.                      */}
+        <aside className={cn(
+          "space-y-4 lg:col-span-1 lg:space-y-6",
+          activeTab === 'items' ? "block" : "hidden",
+          "lg:block"
+        )}>
           <ItemInputForm onAddItem={handleAddItem} />
           <ItemListDisplay
             items={items}
@@ -309,30 +275,103 @@ export default function DinnerTimePage() {
           />
         </aside>
 
-        <main id="printable-area" className="lg:col-span-2 space-y-6">
-          <WeeklyPlannerGrid
-            plan={weeklyPlan}
-            allItems={items}
-            onUpdateDayData={handleUpdateDayInPlan}
-            orderedDays={orderedDaysForDisplay}
-          />
-          <ShoppingList
-            plan={weeklyPlan}
-            manualItems={manualGroceryItems}
-            onAddManualItem={handleAddManualGroceryItem}
-            onDeleteManualItem={handleDeleteManualGroceryItem}
-          />
-          <div className="flex flex-col sm:flex-row justify-end items-center gap-2 non-printable-elements">
-            <Link href="/settings" passHref>
-              <Button variant="outline" size="icon" aria-label="Settings" className="w-full sm:w-auto">
+        {/* Main section (planner + shopping list + action buttons)
+            Each subsection is individually gated on mobile.                 */}
+        <main id="printable-area" className="lg:col-span-2 space-y-4 lg:space-y-6">
+
+          {/* Weekly planner — mobile: 'planner' tab only */}
+          <div className={cn(
+            activeTab === 'planner' ? "block" : "hidden",
+            "lg:block"
+          )}>
+            <WeeklyPlannerGrid
+              plan={weeklyPlan}
+              allItems={items}
+              onUpdateDayData={handleUpdateDayInPlan}
+              orderedDays={orderedDaysForDisplay}
+            />
+          </div>
+
+          {/* Shopping list — mobile: 'shopping' tab only */}
+          <div className={cn(
+            activeTab === 'shopping' ? "block" : "hidden",
+            "lg:block"
+          )}>
+            <ShoppingList
+              plan={weeklyPlan}
+              manualItems={manualGroceryItems}
+              onAddManualItem={handleAddManualGroceryItem}
+              onDeleteManualItem={handleDeleteManualGroceryItem}
+            />
+          </div>
+
+          {/* Print / Export actions — mobile: shown with planner tab */}
+          <div className={cn(
+            "flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2 non-printable-elements",
+            activeTab === 'planner' ? "flex" : "hidden",
+            "lg:flex"
+          )}>
+            {/* Settings link shown inline on desktop; on mobile it's in the app bar */}
+            <Link href="/settings" passHref className="hidden lg:block">
+              <Button variant="outline" size="icon" aria-label="Settings">
                 <Settings className="h-5 w-5" />
               </Button>
             </Link>
             <PrintButton />
-            <ExportButton plan={weeklyPlan} items={items} orderedDays={orderedDaysForDisplay} manualGroceryItems={manualGroceryItems} />
+            <ExportButton
+              plan={weeklyPlan}
+              items={items}
+              orderedDays={orderedDaysForDisplay}
+              manualGroceryItems={manualGroceryItems}
+            />
           </div>
         </main>
       </div>
+
+      {/* ── Footer credit ────────────────────────────────────────────────────── */}
+      <footer className="text-center py-2 non-printable-elements">
+        <p className="text-xs text-muted-foreground">
+          Built by <span className="font-semibold text-foreground/70">Stephen</span>
+        </p>
+      </footer>
+
+      {/* ── Mobile bottom navigation ───────────────────────────────────────────
+          Fixed to the bottom of the viewport. Hidden on desktop (lg+).
+          Uses env(safe-area-inset-bottom) to clear the iPhone home indicator. */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border non-printable-elements pb-safe"
+        aria-label="Main navigation"
+      >
+        <div className="flex items-stretch h-16">
+          {MOBILE_TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              aria-current={activeTab === id ? 'page' : undefined}
+              className={cn(
+                // Generous touch target: flex-1 of 4 columns on a 360px screen ≈ 90px wide
+                "flex-1 flex flex-col items-center justify-center gap-0.5",
+                "transition-colors duration-150",
+                activeTab === id
+                  ? "text-primary"
+                  : "text-muted-foreground active:text-foreground"
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] font-medium leading-none">{label}</span>
+            </button>
+          ))}
+
+          {/* Settings tab — navigates to the settings page */}
+          <Link
+            href="/settings"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground active:text-foreground transition-colors duration-150"
+          >
+            <Settings className="h-5 w-5" />
+            <span className="text-[11px] font-medium leading-none">Settings</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }
