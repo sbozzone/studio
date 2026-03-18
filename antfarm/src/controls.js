@@ -12,7 +12,7 @@
  */
 
 import { addFoodAt, resetSimulation, resizeSimulation } from './simulation.js';
-import { initRenderer }                                 from './renderer.js';
+import { initRenderer, resetTunnels }                  from './renderer.js';
 
 // ── Initialise controls ──────────────────────────────────────────────────────
 
@@ -106,6 +106,7 @@ export function initControls(simState, canvas, ctx) {
 
   document.getElementById('btn-reset').addEventListener('click', () => {
     resetSimulation(simState, simState.canvasWidth, simState.canvasHeight);
+    resetTunnels();
     pauseBtn.textContent = 'Pause';
   });
 
