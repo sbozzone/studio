@@ -1,9 +1,16 @@
 /* ============================================================
-   Virtual Ant Farm — Stylesheet
-   Earthy palette, responsive layout, touch-friendly targets
+   Virtual Ant Farm — 3-D Plastic Frame Stylesheet
    ============================================================ */
 
 :root {
+  /* Farm frame greens */
+  --plastic-base:   #1e8a1e;
+  --plastic-mid:    #2aaa2a;
+  --plastic-light:  #44cc44;
+  --plastic-dark:   #0e5e0e;
+  --plastic-shadow: #093809;
+
+  /* Dirt palette */
   --sand:        #d4b896;
   --dirt:        #a0784a;
   --bark:        #5c3d1e;
@@ -12,7 +19,8 @@
   --trail-food:  rgba(90, 180, 40, 0.55);
   --trail-home:  rgba(220, 140, 40, 0.55);
 
-  --panel-bg:    rgba(44, 28, 12, 0.92);
+  /* Control panel */
+  --panel-bg:    rgba(44, 28, 12, 0.95);
   --panel-border:rgba(160, 120, 60, 0.4);
   --text-light:  #e8d8b8;
   --text-muted:  #a89060;
@@ -22,8 +30,12 @@
   --panel-width: 260px;
   --panel-radius:12px;
   --transition:  0.2s ease;
-
   --touch-min:   44px;
+
+  /* Frame geometry */
+  --frame-side-pad: 14px;
+  --frame-top-h:    78px;
+  --frame-bot-h:    30px;
 }
 
 *, *::before, *::after {
@@ -36,29 +48,205 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bark);
+  /* Wooden desk background */
+  background: radial-gradient(ellipse at center, #6a4820 0%, #3d2510 100%);
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
   color: var(--text-light);
 }
 
-/* ── Layout ──────────────────────────────────────────────── */
+/* ── Top-level layout ────────────────────────────────────── */
 
 #app {
   position: relative;
   width: 100%;
   height: 100%;
   display: flex;
+  align-items: stretch;
+  padding: 12px 0 12px 12px; /* give frame room to breathe */
+}
+
+/* ══════════════════════════════════════════════════════════
+   3-D PLASTIC FARM FRAME
+   ══════════════════════════════════════════════════════════ */
+
+#farm-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+
+  /* Layered green plastic gradient */
+  background:
+    linear-gradient(160deg,
+      var(--plastic-light) 0%,
+      var(--plastic-mid)   15%,
+      var(--plastic-base)  50%,
+      var(--plastic-dark)  85%,
+      var(--plastic-shadow)100%);
+
+  padding: 0 var(--frame-side-pad) 0;
+  border-radius: 6px 6px 4px 4px;
+
+  /* 3-D raised-plastic box-shadow */
+  box-shadow:
+    inset  5px  0   8px rgba(255,255,255,0.18),  /* left highlight  */
+    inset -5px  0   8px rgba(0,0,0,0.30),         /* right shadow    */
+    inset  0    5px 8px rgba(255,255,255,0.14),   /* top highlight   */
+    inset  0   -4px 6px rgba(0,0,0,0.25),         /* bottom shadow   */
+    0 6px 40px rgba(0,0,0,0.8),                   /* outer drop      */
+    0 2px  8px rgba(0,0,0,0.5);
+}
+
+/* ── Top bar (silhouette) ────────────────────────────────── */
+
+#farm-top-bar {
+  flex-shrink: 0;
+  height: var(--frame-top-h);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+
+  /* slightly lighter sky behind the silhouette */
+  background:
+    linear-gradient(to bottom,
+      rgba(60,160,60,0.5) 0%,
+      rgba(0,0,0,0)       100%);
+  border-bottom: 2px solid var(--plastic-shadow);
+}
+
+#farm-silhouette {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Handle nubs at the top */
+.handle-nub {
+  position: absolute;
+  top: 6px;
+  width: 28px;
+  height: 18px;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(to bottom, var(--plastic-light), var(--plastic-base));
+  box-shadow:
+    inset 2px 2px 3px rgba(255,255,255,0.3),
+    inset -2px -2px 3px rgba(0,0,0,0.4),
+    0 2px 6px rgba(0,0,0,0.5);
+}
+.handle-nub.left  { left: 30px; }
+.handle-nub.right { right: 30px; }
+
+/* ── Side bolt connectors ────────────────────────────────── */
+
+.side-bolts {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  z-index: 5;
+}
+.side-bolts.left  { left:  0; transform: translate(-60%, -50%); }
+.side-bolts.right { right: 0; transform: translate( 60%, -50%); }
+
+.bolt-peg {
+  width: 20px;
+  height: 22px;
+  border-radius: 3px;
+  background: linear-gradient(to right,
+    var(--plastic-light) 0%,
+    var(--plastic-mid)   40%,
+    var(--plastic-dark)  100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255,255,255,0.3),
+    inset 0 -2px 3px rgba(0,0,0,0.4),
+    2px 2px 6px rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2px;
+}
+.side-bolts.left  .bolt-peg { justify-content: flex-start; padding-left: 2px; }
+
+.bolt-cap {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff6666, #cc0000, #660000);
+  box-shadow:
+    inset -1px -1px 2px rgba(0,0,0,0.5),
+    0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* ── Glass viewing area ──────────────────────────────────── */
+
+#farm-glass {
+  flex: 1;
+  min-height: 0;       /* critical for flex column */
+  position: relative;
+  background: #060402; /* dark substrate visible at edges */
+
+  /* Inset bezel: glass-in-frame look */
+  box-shadow:
+    inset  0  0   0 2px rgba(0,0,0,0.8),
+    inset  3px  3px 10px rgba(0,0,0,0.5),
+    inset -2px -2px  8px rgba(0,0,0,0.4);
 }
 
 #simulation-canvas {
-  flex: 1;
   display: block;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
-  touch-action: none; /* prevent scroll / zoom on canvas */
+  touch-action: none;
 }
 
-/* ── Control Panel (desktop right-side) ──────────────────── */
+/* ── Bottom bar ──────────────────────────────────────────── */
+
+#farm-bottom-bar {
+  flex-shrink: 0;
+  height: var(--frame-bot-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border-top: 2px solid var(--plastic-shadow);
+  position: relative;
+}
+
+.farm-label {
+  font-family: 'Arial Black', 'Impact', sans-serif;
+  font-size: 13px;
+  letter-spacing: 4px;
+  font-weight: 900;
+  color: var(--plastic-shadow);
+  /* Embossed plastic text */
+  text-shadow:
+    0  1px 0 rgba(255,255,255,0.25),
+    0 -1px 0 rgba(0,0,0,0.5),
+    0  2px 4px rgba(0,0,0,0.3);
+  user-select: none;
+}
+
+.bottom-bolts {
+  display: flex;
+  gap: 8px;
+}
+.bottom-bolt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--plastic-light), var(--plastic-dark));
+  box-shadow: inset -1px -1px 2px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CONTROL PANEL
+   ══════════════════════════════════════════════════════════ */
 
 #control-panel {
   position: relative;
@@ -165,11 +353,7 @@ html, body {
   padding: 3px 0;
 }
 
-.stat-label {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
+.stat-label { color: var(--text-muted); font-size: 12px; }
 .stat-value {
   font-size: 13px;
   font-weight: 600;
@@ -187,7 +371,6 @@ html, body {
   margin-bottom: 5px;
   margin-top: 10px;
 }
-
 .control-label:first-child { margin-top: 0; }
 
 .control-value {
@@ -314,19 +497,14 @@ input[type="checkbox"][role="switch"]:checked::after {
 
 .action-btn:active { transform: scale(0.97); }
 
-.action-btn.primary {
-  background: var(--accent);
-  color: #fff;
-}
-
-.action-btn.primary:hover { background: var(--accent-hover); }
+.action-btn.primary  { background: var(--accent); color: #fff; }
+.action-btn.primary:hover  { background: var(--accent-hover); }
 
 .action-btn.secondary {
   background: rgba(160,120,60,0.2);
   color: var(--text-light);
   border: 1px solid var(--panel-border);
 }
-
 .action-btn.secondary:hover { background: rgba(160,120,60,0.35); }
 
 .keyboard-hint {
@@ -338,21 +516,21 @@ input[type="checkbox"][role="switch"]:checked::after {
 
 /* ── Mobile bottom sheet ─────────────────────────────────── */
 
-#mobile-sheet-tab {
-  display: none;
-}
+#mobile-sheet-tab { display: none; }
 
-/* ── Responsive: ≤ 768px ─────────────────────────────────── */
+/* ── Responsive ≤ 768px ──────────────────────────────────── */
 
 @media (max-width: 768px) {
   #app {
     flex-direction: column;
+    padding: 6px 6px 0;
   }
 
-  #simulation-canvas {
-    flex: 1;
-    width: 100%;
+  #farm-frame {
+    border-radius: 6px 6px 0 0;
   }
+
+  .side-bolts { display: none; }
 
   #control-panel {
     position: fixed;
@@ -370,23 +548,15 @@ input[type="checkbox"][role="switch"]:checked::after {
     transition: transform var(--transition);
   }
 
-  #control-panel.mobile-open {
-    transform: translateY(0);
-  }
-
-  #control-panel.collapsed {
-    width: 100% !important;
-  }
+  #control-panel.mobile-open { transform: translateY(0); }
+  #control-panel.collapsed   { width: 100% !important; }
 
   .panel-header {
     cursor: pointer;
     justify-content: center;
     gap: 8px;
   }
-
-  #panel-toggle {
-    display: none;
-  }
+  #panel-toggle { display: none; }
 
   #mobile-sheet-tab {
     display: block;
@@ -414,13 +584,8 @@ input[type="checkbox"][role="switch"]:checked::after {
     pointer-events: none;
   }
 
-  .actions-section {
-    flex-direction: row;
-  }
-
-  .panel-body {
-    padding-bottom: 24px;
-  }
+  .actions-section   { flex-direction: row; }
+  .panel-body        { padding-bottom: 24px; }
 }
 
 /* ── Canvas add-food cursor ──────────────────────────────── */
