@@ -1,11 +1,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      { source: '/antfarm', destination: '/antfarm/index.html', permanent: false },
-    ];
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
