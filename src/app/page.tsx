@@ -157,7 +157,7 @@ export default function DewPointPage() {
             Dew Point
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            How humid does it <em>really</em> feel?
+            Know how the air feels, right now.
           </p>
         </div>
         <div
@@ -185,11 +185,13 @@ export default function DewPointPage() {
       </header>
 
       {/* Big dew point readout */}
-      <Card
-        className="border-2 transition-colors"
-        style={{ borderColor: level.color, backgroundColor: `${level.color}14` }}
-      >
-        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+      <Card className="relative overflow-hidden">
+        {/* Decorative water-drop shape bleeding off the corner */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-secondary/70"
+        />
+        <CardContent className="relative flex flex-col items-center gap-3 py-8 text-center">
           {source === 'loading' ? (
             <div className="flex h-40 flex-col items-center justify-center gap-3 text-muted-foreground">
               <LoaderCircle className="h-8 w-8 animate-spin" aria-hidden />
@@ -208,13 +210,18 @@ export default function DewPointPage() {
                 <Thermometer className="h-4 w-4" aria-hidden />
                 Air temperature {Math.round(displayTemp)}°{unit}
               </p>
-              <span
-                className="rounded-full px-4 py-1 text-lg font-bold text-white shadow-sm"
-                style={{ backgroundColor: level.color }}
-              >
-                {level.label}
-              </span>
-              <p className="max-w-sm text-sm text-foreground/80">{level.description}</p>
+              <div className="mt-1 flex flex-col items-center gap-0.5 rounded-2xl bg-primary px-7 py-3 text-primary-foreground shadow-sm">
+                <span className="text-2xl font-bold">{level.label}</span>
+                <span className="flex items-center gap-1.5 text-xs text-primary-foreground/75">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: level.color }}
+                    aria-hidden
+                  />
+                  {level.tagline}
+                </span>
+              </div>
+              <p className="max-w-sm text-sm text-muted-foreground">{level.description}</p>
             </>
           )}
 
