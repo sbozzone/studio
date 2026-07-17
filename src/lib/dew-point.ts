@@ -28,8 +28,12 @@ export interface ComfortLevel {
   /** Dew point range in °F: [minF, maxF) — Infinity for the top band */
   minF: number;
   maxF: number;
-  /** Display color (hex) */
+  /** Bright display color for the scale bar and reference dots (hex) */
   color: string;
+  /** Muted fill for the condition badge — readable with cream text (hex) */
+  fill: string;
+  /** Deep variant of the band color for large text on the cream background (hex) */
+  ink: string;
 }
 
 /**
@@ -44,6 +48,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: -Infinity,
     maxF: 50,
     color: '#38bdf8',
+    fill: '#35708F',
+    ink: '#2A5A73',
   },
   {
     label: 'Pleasant',
@@ -52,6 +58,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 50,
     maxF: 55,
     color: '#34d399',
+    fill: '#3F7D5F',
+    ink: '#2E5E47',
   },
   {
     label: 'Comfortable',
@@ -60,6 +68,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 55,
     maxF: 60,
     color: '#a3e635',
+    fill: '#5F7334',
+    ink: '#4A5A28',
   },
   {
     label: 'Sticky',
@@ -68,6 +78,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 60,
     maxF: 65,
     color: '#facc15',
+    fill: '#9A7B2E',
+    ink: '#7A6124',
   },
   {
     label: 'Muggy',
@@ -76,6 +88,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 65,
     maxF: 70,
     color: '#fb923c',
+    fill: '#A85F32',
+    ink: '#8A4E29',
   },
   {
     label: 'Oppressive',
@@ -84,6 +98,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 70,
     maxF: 75,
     color: '#ef4444',
+    fill: '#A34F3D',
+    ink: '#86402F',
   },
   {
     label: 'Miserable',
@@ -92,6 +108,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     minF: 75,
     maxF: Infinity,
     color: '#a855f7',
+    fill: '#7D4E8E',
+    ink: '#663F75',
   },
 ];
 
