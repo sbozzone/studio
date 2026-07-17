@@ -18,7 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,        // Prevents iOS auto-zoom on input focus
   userScalable: false,
-  themeColor: '#FF7F50',  // Warm Coral — colours the browser chrome on Android/iOS
+  themeColor: '#1E4948',  // Deep teal — colours the browser chrome on Android/iOS
 };
 
 export default function RootLayout({

@@ -21,6 +21,8 @@ export const fToC = (f: number): number => ((f - 32) * 5) / 9;
 export interface ComfortLevel {
   /** Short label, e.g. "Oppressive" */
   label: string;
+  /** Two-to-three-word feel, e.g. "Humid and close" */
+  tagline: string;
   /** One-sentence description of how it feels */
   description: string;
   /** Dew point range in °F: [minF, maxF) — Infinity for the top band */
@@ -37,6 +39,7 @@ export interface ComfortLevel {
 export const COMFORT_LEVELS: ComfortLevel[] = [
   {
     label: 'Dry',
+    tagline: 'Crisp and dry',
     description: 'The air is dry — moisture is barely noticeable, and skin may even feel parched.',
     minF: -Infinity,
     maxF: 50,
@@ -44,6 +47,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Pleasant',
+    tagline: 'Fresh and easy',
     description: 'Very comfortable. Crisp, pleasant air that most people find ideal.',
     minF: 50,
     maxF: 55,
@@ -51,6 +55,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Comfortable',
+    tagline: 'Barely noticeable',
     description: 'Comfortable for the vast majority of people. Humidity goes unnoticed.',
     minF: 55,
     maxF: 60,
@@ -58,6 +63,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Sticky',
+    tagline: 'Humid and close',
     description: 'Getting sticky. The humidity is noticeable, though still tolerable for most.',
     minF: 60,
     maxF: 65,
@@ -65,6 +71,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Muggy',
+    tagline: 'Heavy and damp',
     description: 'Muggy and humid — the air feels heavy and sweat stops evaporating well.',
     minF: 65,
     maxF: 70,
@@ -72,6 +79,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Oppressive',
+    tagline: 'Thick and stifling',
     description: 'Oppressive. Very uncomfortable; take it easy during outdoor activity.',
     minF: 70,
     maxF: 75,
@@ -79,6 +87,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Miserable',
+    tagline: 'Tropical and hazardous',
     description: 'Miserable, tropical-level moisture. Outdoor exertion can be hazardous.',
     minF: 75,
     maxF: Infinity,
