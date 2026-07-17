@@ -5,7 +5,7 @@ description: Build, launch, and drive this Next.js app in headless Chromium to v
 
 # Verifying changes in this repo
 
-Next.js 15 app. Routes: `/` (DinnerTime planner), `/dew-point` (dew point calculator).
+Next.js 15 app. Routes: `/` (dew point calculator), `/dinnertime` (DinnerTime planner).
 
 ## Build & launch
 
@@ -28,7 +28,7 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 ## Gotchas
 
 - The sandbox proxy 403-blocks `api.open-meteo.com` and `api.bigdatacloud.net`
-  (used by `/dew-point`) — mock them with `page.route(...)` fulfilling the
+  (used by the dew point app at `/`) — mock them with `page.route(...)` fulfilling the
   documented response shapes.
 - Geolocation: grant via `newContext({ geolocation: {...}, permissions: ['geolocation'] })`.
   A context *without* the permission leaves the prompt unanswered forever
@@ -37,5 +37,6 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
   error callback with `{ code: 1 }`.
 - Radix sliders: focus the `role=slider` thumb and use Home/End/arrow keys —
   more reliable than mouse drags.
-- Don't `pkill -f "next start"` from a command whose own text contains that
-  string — it kills your shell. Use `pkill -f next-server`.
+- `pkill -f <pattern>` kills your own shell when the pattern appears in the
+  command line you're running (exit 144). Use a self-excluding pattern:
+  `pkill -f "next[-]server"`.

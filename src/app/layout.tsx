@@ -3,8 +3,9 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'DinnerTime - Weekly Meal Planner',
-  description: 'Plan your weekly dinners with ease.',
+  title: 'Dew Point — How Humid Does It Feel?',
+  description:
+    'Calculates the current dew point from your local conditions and rates it on the standard comfort scale, from dry to oppressive.',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',

@@ -2,9 +2,9 @@
 
 A Next.js app hosting small personal tools, deployed on Vercel:
 
-- **`/`** — DinnerTime, a weekly dinner planner with a shopping list
-- **`/dew-point`** — Dew point calculator that rates how humid it feels using
-  your local conditions
+- **`/`** — Dew point calculator that rates how humid it feels using your
+  local conditions
+- **`/dinnertime`** — DinnerTime, a weekly dinner planner with a shopping list
 
 ## Development
 
