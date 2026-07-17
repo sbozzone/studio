@@ -103,7 +103,7 @@ export default function SettingsPage() {
           Replaces the oversized desktop header on small screens.             */}
       <div className="lg:hidden sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center h-14 px-1">
-          <Link href="/" passHref>
+          <Link href="/dinnertime" passHref>
             <Button variant="ghost" size="icon" aria-label="Back to planner" className="h-11 w-11">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -167,7 +167,7 @@ export default function SettingsPage() {
         <ItemCsvUploadForm onBulkAddItems={handleBulkAddItems} />
 
         {/* Back button — desktop only; mobile uses the app bar back arrow */}
-        <Link href="/" passHref className="hidden lg:block">
+        <Link href="/dinnertime" passHref className="hidden lg:block">
           <Button variant="outline" className="w-full h-11">
             <ArrowLeft className="mr-2 h-5 w-5" />
             Back to Planner
