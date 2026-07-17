@@ -202,7 +202,10 @@ export default function DewPointPage() {
               <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
                 Current dew point
               </p>
-              <p className="text-7xl font-bold tabular-nums leading-none">
+              <p
+                className="text-7xl font-bold tabular-nums leading-none transition-colors"
+                style={{ color: level.ink }}
+              >
                 {Math.round(displayDewPoint)}°
                 <span className="text-4xl align-top">{unit}</span>
               </p>
@@ -210,16 +213,12 @@ export default function DewPointPage() {
                 <Thermometer className="h-4 w-4" aria-hidden />
                 Air temperature {Math.round(displayTemp)}°{unit}
               </p>
-              <div className="mt-1 flex flex-col items-center gap-0.5 rounded-2xl bg-primary px-7 py-3 text-primary-foreground shadow-sm">
+              <div
+                className="mt-1 flex flex-col items-center gap-0.5 rounded-2xl px-7 py-3 text-primary-foreground shadow-sm transition-colors"
+                style={{ backgroundColor: level.fill }}
+              >
                 <span className="text-2xl font-bold">{level.label}</span>
-                <span className="flex items-center gap-1.5 text-xs text-primary-foreground/75">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: level.color }}
-                    aria-hidden
-                  />
-                  {level.tagline}
-                </span>
+                <span className="text-xs text-primary-foreground/80">{level.tagline}</span>
               </div>
               <p className="max-w-sm text-sm text-muted-foreground">{level.description}</p>
             </>
