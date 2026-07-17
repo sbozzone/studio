@@ -252,11 +252,24 @@ export default function DewPointPage() {
                 />
               )}
             </div>
-            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-              <span>Dry</span>
-              <span>Comfortable</span>
-              <span>Sticky</span>
-              <span>Oppressive</span>
+            <div className="relative mt-1 h-4 text-[10px] text-muted-foreground">
+              {COMFORT_LEVELS.filter((l) =>
+                ['Dry', 'Pleasant', 'Sticky', 'Oppressive'].includes(l.label)
+              ).map((l) => {
+                const center =
+                  (Math.max(l.minF, SCALE_MIN_F) + Math.min(l.maxF, SCALE_MAX_F)) / 2;
+                return (
+                  <span
+                    key={l.label}
+                    className="absolute -translate-x-1/2 whitespace-nowrap"
+                    style={{
+                      left: `${(100 * (center - SCALE_MIN_F)) / (SCALE_MAX_F - SCALE_MIN_F)}%`,
+                    }}
+                  >
+                    {l.label}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </CardContent>
