@@ -1,5 +1,17 @@
-# Firebase Studio
+# Studio
 
-This is a NextJS starter in Firebase Studio.
+A Next.js app hosting small personal tools, deployed on Vercel:
 
-To get started, take a look at src/app/page.tsx.
+- **`/`** — DinnerTime, a weekly dinner planner with a shopping list
+- **`/dew-point`** — Dew point calculator that rates how humid it feels using
+  your local conditions
+
+## Development
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+`npm run build` creates the production bundle; `npm run typecheck` runs the
+TypeScript checker.
