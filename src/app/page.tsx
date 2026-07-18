@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Droplets, LocateFixed, LoaderCircle, MapPin, Pencil, Thermometer } from 'lucide-react';
+import { Droplets, LocateFixed, LoaderCircle, MapPin, Pencil, Sun, Thermometer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   COMFORT_LEVELS,
   calcDewPointC,
+  calcFeelsLikeF,
   cToF,
   fToC,
   getComfortLevel,
@@ -21,6 +22,8 @@ type Source = 'loading' | 'live' | 'manual';
 interface Conditions {
   tempC: number;
   rh: number; // relative humidity %
+  /** Apparent temperature from the weather service — null in manual mode */
+  feelsLikeC: number | null;
 }
 
 /** Range of the visual scale bar, in °F. */
@@ -30,16 +33,17 @@ const SCALE_MAX_F = 85;
 async function fetchCurrentWeather(lat: number, lon: number): Promise<Conditions> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
-    `&current=temperature_2m,relative_humidity_2m&temperature_unit=celsius`;
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature&temperature_unit=celsius`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Weather service returned ${res.status}`);
   const data = await res.json();
   const tempC = data?.current?.temperature_2m;
   const rh = data?.current?.relative_humidity_2m;
+  const apparent = data?.current?.apparent_temperature;
   if (typeof tempC !== 'number' || typeof rh !== 'number') {
     throw new Error('Weather service returned incomplete data');
   }
-  return { tempC, rh };
+  return { tempC, rh, feelsLikeC: typeof apparent === 'number' ? apparent : null };
 }
 
 /** Best-effort "City, Region" for the header — the app works fine without it. */
@@ -86,7 +90,11 @@ function isPermissionDenied(err: unknown): boolean {
 
 export default function DewPointPage() {
   const [unit, setUnit] = useState<Unit>('F');
-  const [conditions, setConditions] = useState<Conditions>({ tempC: fToC(75), rh: 50 });
+  const [conditions, setConditions] = useState<Conditions>({
+    tempC: fToC(75),
+    rh: 50,
+    feelsLikeC: null,
+  });
   const [source, setSource] = useState<Source>('loading');
   const [place, setPlace] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -130,6 +138,14 @@ export default function DewPointPage() {
   const displayDewPoint = unit === 'F' ? dewPointF : dewPointC;
   const displayTemp = unit === 'F' ? cToF(conditions.tempC) : conditions.tempC;
 
+  // Real feel: the weather service's apparent temperature when live (it
+  // accounts for wind and sun), otherwise the NWS heat index from the sliders.
+  const feelsLikeF =
+    conditions.feelsLikeC != null
+      ? cToF(conditions.feelsLikeC)
+      : calcFeelsLikeF(cToF(conditions.tempC), conditions.rh);
+  const displayFeelsLike = unit === 'F' ? feelsLikeF : fToC(feelsLikeF);
+
   // Marker position on the scale bar (0..100 %)
   const markerPct =
     (100 * (Math.min(SCALE_MAX_F, Math.max(SCALE_MIN_F, dewPointF)) - SCALE_MIN_F)) /
@@ -137,11 +153,11 @@ export default function DewPointPage() {
 
   const setDisplayTemp = (value: number) => {
     setSource('manual');
-    setConditions((c) => ({ ...c, tempC: unit === 'F' ? fToC(value) : value }));
+    setConditions((c) => ({ ...c, tempC: unit === 'F' ? fToC(value) : value, feelsLikeC: null }));
   };
   const setHumidity = (value: number) => {
     setSource('manual');
-    setConditions((c) => ({ ...c, rh: value }));
+    setConditions((c) => ({ ...c, rh: value, feelsLikeC: null }));
   };
 
   const tempSlider = unit === 'F'
@@ -209,9 +225,15 @@ export default function DewPointPage() {
                 {Math.round(displayDewPoint)}°
                 <span className="text-4xl align-top">{unit}</span>
               </p>
-              <p className="flex items-center gap-1 text-base font-medium text-muted-foreground">
-                <Thermometer className="h-4 w-4" aria-hidden />
-                Air temperature {Math.round(displayTemp)}°{unit}
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-base font-medium text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Thermometer className="h-4 w-4" aria-hidden />
+                  Air temperature {Math.round(displayTemp)}°{unit}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Sun className="h-4 w-4" aria-hidden />
+                  Feels like {Math.round(displayFeelsLike)}°{unit}
+                </span>
               </p>
               <div
                 className="mt-1 flex flex-col items-center gap-0.5 rounded-2xl px-7 py-3 text-primary-foreground shadow-sm transition-colors"
