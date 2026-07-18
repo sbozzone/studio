@@ -18,6 +18,43 @@ export function calcDewPointC(tempC: number, relativeHumidity: number): number {
 export const cToF = (c: number): number => (c * 9) / 5 + 32;
 export const fToC = (f: number): number => ((f - 32) * 5) / 9;
 
+/**
+ * "Feels like" temperature in °F from air temperature (°F) and relative
+ * humidity, using the NWS heat index (Rothfusz regression with the official
+ * low/high-humidity adjustments), blending through Steadman's simple formula
+ * near the bottom of its range. Below ~68 °F humidity stops affecting how warm
+ * it feels and wind chill would need wind speed, so the air temperature is
+ * returned as-is.
+ */
+export function calcFeelsLikeF(tempF: number, relativeHumidity: number): number {
+  const T = tempF;
+  if (T < 68) return T;
+  const RH = Math.min(100, Math.max(0, relativeHumidity));
+  const simple = 0.5 * (T + 61.0 + (T - 68.0) * 1.2 + RH * 0.094);
+  if ((simple + T) / 2 < 80) return simple;
+
+  let hi =
+    -42.379 +
+    2.04901523 * T +
+    10.14333127 * RH -
+    0.22475541 * T * RH -
+    0.00683783 * T * T -
+    0.05481717 * RH * RH +
+    0.00122874 * T * T * RH +
+    0.00085282 * T * RH * RH -
+    0.00000199 * T * T * RH * RH;
+
+  if (RH < 13 && T >= 80 && T <= 112) {
+    hi -= ((13 - RH) / 4) * Math.sqrt((17 - Math.abs(T - 95)) / 17);
+  } else if (RH > 85 && T >= 80 && T <= 87) {
+    hi += ((RH - 85) / 10) * ((87 - T) / 5);
+  }
+  // The regression is only charted to ~110 °F air temperature; slider what-ifs
+  // beyond it (e.g. 120 °F at 66 % RH) explode into fantasy numbers, so cap at
+  // the top of the NWS chart.
+  return Math.min(hi, 140);
+}
+
 export interface ComfortLevel {
   /** Short label, e.g. "Oppressive" */
   label: string;
