@@ -7,6 +7,8 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Droplets, LocateFixed, LoaderCircle, MapPin, Pencil, Sun, Thermometer } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import OutlookCard from '@/components/dewpoint/outlook-card';
+import { getPosition, isPermissionDenied } from '@/lib/geolocate';
 import {
   COMFORT_LEVELS,
   calcDewPointC,
@@ -63,31 +65,6 @@ async function fetchPlaceName(lat: number, lon: number): Promise<string | null> 
   }
 }
 
-function getPosition(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) {
-      reject(new Error('Geolocation is not supported by this browser'));
-      return;
-    }
-    // The native `timeout` option doesn't start ticking until the user answers
-    // the permission prompt, so an ignored prompt would spin forever — race it
-    // with our own hard timeout.
-    const timer = setTimeout(() => reject(new Error('Timed out getting location')), 15000);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { clearTimeout(timer); resolve(pos); },
-      (err) => { clearTimeout(timer); reject(err); },
-      { timeout: 12000, maximumAge: 5 * 60 * 1000 }
-    );
-  });
-}
-
-function isPermissionDenied(err: unknown): boolean {
-  return (
-    typeof err === 'object' && err !== null && 'code' in err &&
-    (err as { code: unknown }).code === 1 // GeolocationPositionError.PERMISSION_DENIED
-  );
-}
-
 export default function DewPointPage() {
   const [unit, setUnit] = useState<Unit>('F');
   const [conditions, setConditions] = useState<Conditions>({
@@ -99,6 +76,7 @@ export default function DewPointPage() {
   const [place, setPlace] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
 
   const useMyLocation = useCallback(async () => {
     setSource('loading');
@@ -106,6 +84,7 @@ export default function DewPointPage() {
     try {
       const pos = await getPosition();
       const { latitude, longitude } = pos.coords;
+      setCoords({ lat: latitude, lon: longitude });
       const [weather, placeName] = await Promise.all([
         fetchCurrentWeather(latitude, longitude),
         fetchPlaceName(latitude, longitude),
@@ -376,6 +355,9 @@ export default function DewPointPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Qualitative weekly outlook */}
+      <OutlookCard coords={coords} />
 
       {/* Reference scale */}
       <Card>
