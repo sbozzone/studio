@@ -5,7 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Droplets, LocateFixed, LoaderCircle, MapPin, Pencil, Sun, Thermometer } from 'lucide-react';
+import {
+  Droplets,
+  Equal,
+  LocateFixed,
+  LoaderCircle,
+  MapPin,
+  Pencil,
+  Sun,
+  Thermometer,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import OutlookCard from '@/components/dewpoint/outlook-card';
 import { getPosition, isPermissionDenied } from '@/lib/geolocate';
@@ -16,6 +27,7 @@ import {
   cToF,
   fToC,
   getComfortLevel,
+  yesterdayComparison,
 } from '@/lib/dew-point';
 
 type Unit = 'F' | 'C';
@@ -26,6 +38,8 @@ interface Conditions {
   rh: number; // relative humidity %
   /** Apparent temperature from the weather service — null in manual mode */
   feelsLikeC: number | null;
+  /** Dew point at this same hour yesterday — null when unavailable */
+  yesterdayDewC: number | null;
 }
 
 /** Range of the visual scale bar, in °F. */
@@ -35,7 +49,8 @@ const SCALE_MAX_F = 85;
 async function fetchCurrentWeather(lat: number, lon: number): Promise<Conditions> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
-    `&current=temperature_2m,relative_humidity_2m,apparent_temperature&temperature_unit=celsius`;
+    `&current=temperature_2m,relative_humidity_2m,apparent_temperature` +
+    `&hourly=dew_point_2m&past_days=1&forecast_days=1&timezone=auto&temperature_unit=celsius`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Weather service returned ${res.status}`);
   const data = await res.json();
@@ -45,7 +60,24 @@ async function fetchCurrentWeather(lat: number, lon: number): Promise<Conditions
   if (typeof tempC !== 'number' || typeof rh !== 'number') {
     throw new Error('Weather service returned incomplete data');
   }
-  return { tempC, rh, feelsLikeC: typeof apparent === 'number' ? apparent : null };
+
+  // Dew point at this same hour yesterday: find the current hour in the
+  // hourly series (which starts 24h back thanks to past_days=1), step back 24.
+  let yesterdayDewC: number | null = null;
+  const times: string[] = data?.hourly?.time ?? [];
+  const dews: (number | null)[] = data?.hourly?.dew_point_2m ?? [];
+  const currentHour = `${String(data?.current?.time ?? '').slice(0, 13)}:00`;
+  const idx = times.indexOf(currentHour);
+  if (idx >= 24 && typeof dews[idx - 24] === 'number') {
+    yesterdayDewC = dews[idx - 24];
+  }
+
+  return {
+    tempC,
+    rh,
+    feelsLikeC: typeof apparent === 'number' ? apparent : null,
+    yesterdayDewC,
+  };
 }
 
 /** Best-effort "City, Region" for the header — the app works fine without it. */
@@ -71,6 +103,7 @@ export default function DewPointPage() {
     tempC: fToC(75),
     rh: 50,
     feelsLikeC: null,
+    yesterdayDewC: null,
   });
   const [source, setSource] = useState<Source>('loading');
   const [place, setPlace] = useState<string | null>(null);
@@ -222,6 +255,17 @@ export default function DewPointPage() {
                 <span className="text-xs text-primary-foreground/80">{level.tagline}</span>
               </div>
               <p className="max-w-sm text-sm text-muted-foreground">{level.description}</p>
+              {source === 'live' && conditions.yesterdayDewC != null && (() => {
+                const yestF = cToF(conditions.yesterdayDewC);
+                const delta = Math.round(dewPointF) - Math.round(yestF);
+                const TrendIcon = delta >= 2 ? TrendingUp : delta <= -2 ? TrendingDown : Equal;
+                return (
+                  <p className="flex max-w-sm items-center justify-center gap-1.5 text-xs font-medium text-foreground/70">
+                    <TrendIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {yesterdayComparison(dewPointF, yestF, unit)}
+                  </p>
+                );
+              })()}
             </>
           )}
 

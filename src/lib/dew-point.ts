@@ -150,6 +150,35 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
 ];
 
+/**
+ * Qualitative comparison of the current dew point against the same hour
+ * yesterday, e.g. "Noticeably stickier than this time yesterday (74° vs 66°,
+ * up from muggy into oppressive)."
+ */
+export function yesterdayComparison(todayF: number, yesterdayF: number, unit: 'F' | 'C'): string {
+  const t = Math.round(todayF);
+  const y = Math.round(yesterdayF);
+  const delta = t - y;
+  const abs = Math.abs(delta);
+  const dir = delta > 0 ? 'stickier' : 'drier';
+
+  let phrase: string;
+  if (abs < 2) phrase = 'About the same as this time yesterday';
+  else if (abs <= 4) phrase = `A touch ${dir} than this time yesterday`;
+  else if (abs <= 8) phrase = `Noticeably ${dir} than this time yesterday`;
+  else phrase = `A different air mass than yesterday — far ${dir}`;
+
+  const bandToday = getComfortLevel(todayF);
+  const bandYesterday = getComfortLevel(yesterdayF);
+  const bandNote =
+    bandToday.label !== bandYesterday.label
+      ? `, ${delta > 0 ? 'up from' : 'down from'} ${bandYesterday.label.toLowerCase()} into ${bandToday.label.toLowerCase()}`
+      : '';
+
+  const fmt = (f: number) => `${Math.round(unit === 'F' ? f : fToC(f))}°`;
+  return `${phrase} (${fmt(todayF)} vs ${fmt(yesterdayF)}${bandNote}).`;
+}
+
 export function getComfortLevel(dewPointF: number): ComfortLevel {
   return (
     COMFORT_LEVELS.find((l) => dewPointF >= l.minF && dewPointF < l.maxF) ??
