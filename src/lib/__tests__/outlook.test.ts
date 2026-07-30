@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   composeBrief,
@@ -134,5 +137,31 @@ describe('Plainfield regression brief', () => {
 
   it('matches the full seven-day analysis snapshot', () => {
     expect(allText).toMatchSnapshot();
+  });
+});
+
+describe('v1 generator regression bans', () => {
+  const composerSource = readFileSync(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../outlook.ts'),
+    'utf8'
+  );
+
+  it('the retired v1 phrases are gone from the composer source', () => {
+    expect(composerSource).not.toMatch(/not a heat-index week/i);
+    expect(composerSource).not.toMatch(/comfortable end of summer/i);
+    expect(composerSource).not.toMatch(/sweat evaporating/i);
+  });
+
+  it('the composed brief never emits the retired v1 phrases', () => {
+    expect(allText).not.toMatch(/not a heat-index week/i);
+    expect(allText).not.toMatch(/comfortable end of summer/i);
+    expect(allText).not.toMatch(/sweat evaporating/i);
+    // "near saturation" survives only behind the ≤3°F spread gate; the
+    // Plainfield fixture (75°F/68°F Saturday) must not trip it
+    expect(allText).not.toMatch(/near saturation/i);
+  });
+
+  it('stamps the analysis version so stale deployments are identifiable', () => {
+    expect(brief.analysisVersion).toBe('2.0.0');
   });
 });

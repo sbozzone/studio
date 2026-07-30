@@ -29,7 +29,9 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
         lat = pos.coords.latitude;
         lon = pos.coords.longitude;
       }
-      setBrief(await fetchOutlook(lat, lon));
+      const next = await fetchOutlook(lat, lon);
+      console.info(`[outlook] analysis v${next.analysisVersion}`);
+      setBrief(next);
       setStatus('ready');
     } catch (err) {
       setError(
@@ -97,7 +99,10 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
             ))}
           </ul>
 
-          <p className="text-xs text-muted-foreground">{brief.footnote}</p>
+          <p className="text-xs text-muted-foreground">
+            {brief.footnote}
+            <span className="opacity-60"> · analysis v{brief.analysisVersion}</span>
+          </p>
         </CardContent>
       )}
     </Card>
