@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
       { source: '/settings', destination: '/dinnertime/settings', permanent: false },
     ];
   },
+  async headers() {
+    // Force the HTML documents to revalidate on every load so a device can't
+    // keep serving an old shell (and therefore old JS chunks) after a deploy.
+    // Hashed assets under /_next/static keep their immutable caching.
+    return [
+      {
+        source: '/((?!_next/static|_next/image|favicon.ico).*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
