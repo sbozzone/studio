@@ -74,6 +74,11 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
 
       {status === 'ready' && brief && (
         <CardContent className="flex flex-col gap-4 pt-2">
+          {brief.alerts.length > 0 && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+              ⚠ {brief.alerts.join(' · ')} in effect — see weather.gov for official details.
+            </p>
+          )}
           <p className="border-l-4 border-accent pl-3 text-sm font-medium leading-relaxed">
             {brief.headline}
           </p>

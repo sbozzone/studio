@@ -7,6 +7,11 @@ description: Build, launch, and drive this Next.js app in headless Chromium to v
 
 Next.js 15 app. Routes: `/` (dew point calculator), `/dinnertime` (DinnerTime planner).
 
+## Unit tests
+
+`npm test` runs vitest (`src/**/*.test.ts`). The outlook composer has a
+Plainfield regression fixture and snapshot in `src/lib/__tests__/`.
+
 ## Build & launch
 
 ```bash
