@@ -151,6 +151,20 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
 ];
 
 /**
+ * The single source of truth for dew-point comfort language in prose.
+ * Mid-60s through low-70s dew points are humid — never "comfortable".
+ */
+export function dewPointDescriptor(dewPointF: number): string {
+  const dp = Math.round(dewPointF);
+  if (dp <= 55) return 'dry and comfortable';
+  if (dp <= 60) return 'generally comfortable';
+  if (dp <= 65) return 'becoming sticky';
+  if (dp <= 69) return 'muggy';
+  if (dp <= 74) return 'oppressive';
+  return 'very oppressive';
+}
+
+/**
  * Qualitative comparison of the current dew point against the same hour
  * yesterday, e.g. "Noticeably stickier than this time yesterday (74° vs 66°,
  * up from muggy into oppressive)."

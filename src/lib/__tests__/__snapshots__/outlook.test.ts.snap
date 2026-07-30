@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Plainfield regression brief > matches the full seven-day analysis snapshot 1`] = `
+"No major heat episode is expected. Afternoon heat indices should stay close to the air temperature through Saturday, then run roughly 3–6° warmer from Sunday on. It will still feel humid, with dew points ranging from the mid 60s to low 70s. The primary concern is showers and thunderstorms developing late Friday, with the greatest rain potential Friday night through Saturday.
+Thursday (today) — High 84. Dew point steady near 64 — becoming sticky. Afternoon heat index stays within a couple degrees of the air temperature. Sunny. Nearly calm air — little wind relief. In direct sun it will feel hotter than the listed heat index.
+Friday — High 86. Dew point steady near 65 — becoming sticky. Afternoon heat index stays within a couple degrees of the air temperature. Mostly sunny for much of the day, with rain chances increasing late in the day and overnight (peak chance around 80%). Winds remain light, offering limited relief.
+Saturday — High near 75 expected. Dew point steady near 68 — muggy. Showers and thunderstorms likely, peak rain chance around 80%. Not hot, but damp and humid — a muggy day even between showers. A noticeable SE breeze of around 9 mph may provide some relief.
+Sunday — High near 80 expected. Dew point steady near 67 — muggy. Afternoon heat index is expected to reach about 83, a few degrees above the air temperature. Partly sunny. Winds remain light, offering limited relief.
+Monday — Currently forecast to reach 82. Dew point steady near 68 — muggy. Afternoon heat index is expected to reach about 85, a few degrees above the air temperature. Mostly sunny, peak rain chance around 30%. Details this far out can still shift.
+Tuesday — Currently forecast to reach 84. Dew point steady near 71 — oppressive. Heat index is expected to reach about 90, roughly 6° above the air temperature. Mostly sunny, peak rain chance around 30%. Details this far out can still shift.
+Wednesday — High near 85 currently forecast. Chance of showers and thunderstorms. Wind SW 5 to 10 mph. Southerly flow tends to bring moisture back — it may feel more humid than the numbers suggest.
+Firm hourly dewpoint numbers run through Tuesday night; Wednesday is read from the 7-day pattern, not published hourlies, and details there often shift. Best windows to be outside: today and Friday."
+`;
