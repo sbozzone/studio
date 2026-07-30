@@ -1,167 +1,462 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { composeOutlook, fetchOutlook } from '@/lib/outlook';
+import { buildDailyFacts } from '@/lib/weather/daily-facts';
+import { heatIndexF } from '@/lib/weather/heat-index';
 import {
-  composeBrief,
-  parseHourly,
-  roundPop,
+  NARRATIVE_RULESET_VERSION,
+  composeNarrative,
   sentenceCaseCondition,
-  tensPhrase,
-} from '@/lib/outlook';
-import { calcFeelsLikeF } from '@/lib/dew-point';
-import { plainfieldDailyPeriods, plainfieldHourlyPeriods } from './plainfield-fixture';
+  validateNarrative,
+} from '@/lib/weather/narrative';
+import {
+  cacheGet,
+  cacheKeys,
+  cacheSet,
+  locationKeyOf,
+  narrativeCacheKey,
+  resetCaches,
+} from '@/lib/weather/cache';
+import { fetchNormalizedForecast, expandQpfToHourlyInches, localParts } from '@/lib/weather/nws';
+import {
+  PLAINFIELD_NOW,
+  PLAINFIELD_SOURCE_UPDATED_AT,
+  plainfieldLoader,
+} from './plainfield-fixture';
 
-const brief = composeBrief(
-  parseHourly(plainfieldHourlyPeriods()),
-  plainfieldDailyPeriods(),
-  'Plainfield, IN'
-);
-const dayText = (name: string) =>
-  brief.days.find((d) => d.name.startsWith(name))?.text ?? `(missing day ${name})`;
-const allText = [brief.headline, ...brief.days.map((d) => `${d.name} — ${d.text}`), brief.footnote].join('\n');
+const LAT = 39.704;
+const LON = -86.399;
 
-describe('helpers', () => {
-  it('rounds probabilities to the nearest 10%', () => {
-    expect(roundPop(47)).toBe(50);
-    expect(roundPop(82)).toBe(80);
-    expect(roundPop(31)).toBe(30);
+async function loadForecast(options = {}) {
+  return fetchNormalizedForecast(LAT, LON, { load: plainfieldLoader(options) });
+}
+
+async function briefFor(options = {}) {
+  const forecast = await loadForecast(options);
+  return composeOutlook(forecast, { now: PLAINFIELD_NOW });
+}
+
+beforeEach(() => resetCaches());
+
+describe('normalization', () => {
+  it('records provider semantics and the location time zone', async () => {
+    const f = await loadForecast();
+    expect(f.provider).toContain('NWS');
+    expect(f.locationTimeZone).toBe('America/Indiana/Indianapolis');
+    expect(f.sourceUpdatedAt).toBe(PLAINFIELD_SOURCE_UPDATED_AT);
+    expect(f.locationName).toBe('Plainfield, IN');
+    expect(f.alertsStatus).toBe('ok');
   });
-  it('sentence-cases NWS Title Case conditions', () => {
-    expect(sentenceCaseCondition('Showers And Thunderstorms')).toBe('showers and thunderstorms');
-    expect(sentenceCaseCondition('Chance Showers And Thunderstorms')).toBe('chance of showers and thunderstorms');
+
+  it('groups days by the location calendar date, not the server date', async () => {
+    const f = await loadForecast();
+    const firstMidnight = f.periods[0];
+    expect(firstMidnight.localDate).toBe('2026-07-30');
+    expect(firstMidnight.localHour).toBe(0);
+    // 04:00 UTC on this date is midnight local (EDT), i.e. still the 30th
+    expect(localParts('2026-07-30T04:00:00Z', 'America/Indiana/Indianapolis').date).toBe(
+      '2026-07-30'
+    );
   });
-  it('describes values in tens phrasing', () => {
-    expect(tensPhrase(62)).toBe('low 60s');
-    expect(tensPhrase(68)).toBe('upper 60s');
+
+  it('handles a daylight-saving transition without dropping or duplicating a day', () => {
+    // 2026-11-01 is the US DST fallback; 06:00 UTC is 01:00 EST/EDT the same day
+    const tz = 'America/Indiana/Indianapolis';
+    expect(localParts('2026-11-01T05:00:00Z', tz).date).toBe('2026-11-01');
+    expect(localParts('2026-11-01T07:00:00Z', tz).date).toBe('2026-11-01');
+    expect(localParts('2026-11-02T04:59:00Z', tz).date).toBe('2026-11-01');
+  });
+
+  it('prefers provider RH and flags derivation when absent', async () => {
+    const f = await loadForecast();
+    expect(f.periods.every((p) => p.relativeHumidityDerived === false)).toBe(true);
+  });
+
+  it('expands multi-hour QPF across its valid interval rather than treating it as hourly', () => {
+    const hourly = expandQpfToHourlyInches([
+      { validTime: '2026-08-01T04:00:00+00:00/PT6H', value: 25.4 },
+    ]);
+    expect(hourly.size).toBe(6);
+    for (const v of hourly.values()) expect(v).toBeCloseTo(1 / 6, 6);
+  });
+
+  it('omits values rather than inventing them when fields are missing', async () => {
+    const load = async (url: string) => {
+      if (url.includes('/points/')) return (await plainfieldLoader()(url)) as any;
+      if (url.includes('/alerts/active')) return { features: [] };
+      if (url.endsWith('/forecast/hourly')) {
+        return {
+          properties: {
+            updated: PLAINFIELD_SOURCE_UPDATED_AT,
+            periods: [
+              {
+                startTime: '2026-07-30T12:00:00-04:00',
+                temperature: 80,
+                temperatureUnit: 'F',
+                dewpoint: { value: null },
+                relativeHumidity: { value: null },
+                windSpeed: null,
+                windDirection: null,
+                probabilityOfPrecipitation: { value: null },
+                shortForecast: 'Sunny',
+              },
+            ],
+          },
+        };
+      }
+      if (url.endsWith('/forecast')) return { properties: { periods: [] } };
+      return { properties: {} };
+    };
+    const f = await fetchNormalizedForecast(LAT, LON, { load });
+    const p = f.periods[0];
+    expect(p.dewPointF).toBeNull();
+    expect(p.relativeHumidityPct).toBeNull();
+    expect(p.windSpeedMaxMph).toBeNull();
+    expect(p.precipitationProbabilityPct).toBeNull();
   });
 });
 
-describe('Plainfield regression brief', () => {
-  it('headline never claims feels-like cannot exceed air temperature', () => {
-    expect(brief.headline).not.toMatch(/never (runs|exceeds|tops|goes)/i);
+describe('daily aggregation', () => {
+  it('pairs heat index with the temperature from the same timestamp', async () => {
+    const f = await loadForecast();
+    const facts = buildDailyFacts(f, '2026-07-30');
+    for (const day of facts) {
+      if (day.maxHeatIndexF == null) continue;
+      const hour = f.periods.find((p) => p.validStart === day.timestampOfMaxHeatIndex)!;
+      expect(hour.temperatureF).toBe(day.temperatureAtMaxHeatIndexF);
+      expect(day.maxHeatIndexF).toBeCloseTo(
+        heatIndexF(hour.temperatureF!, hour.relativeHumidityPct!),
+        6
+      );
+    }
+  });
+
+  it('never derives the heat-index delta from cross-hour maxima', async () => {
+    const f = await loadForecast();
+    const facts = buildDailyFacts(f, '2026-07-30');
+    let differsFromNaive = 0;
+    for (const day of facts) {
+      if (day.maxHourlyHeatIndexDelta == null) continue;
+      const hour = f.periods.find((p) => p.validStart === day.timestampOfMaxHeatIndexDelta)!;
+      const sameHourDelta =
+        heatIndexF(hour.temperatureF!, hour.relativeHumidityPct!) - hour.temperatureF!;
+      expect(day.maxHourlyHeatIndexDelta).toBeCloseTo(sameHourDelta, 6);
+
+      // The cross-hour shortcut (day's peak HI minus day's high temperature)
+      // is a different quantity; we must not be computing it.
+      const naive = (day.maxHeatIndexF ?? 0) - (day.highTemperatureF ?? 0);
+      if (Math.abs(naive - day.maxHourlyHeatIndexDelta) > 0.05) differsFromNaive++;
+    }
+    expect(differsFromNaive).toBeGreaterThan(0);
+  });
+
+  it('produces the specified displayed heat index for each fixture day', async () => {
+    const f = await loadForecast();
+    const facts = buildDailyFacts(f, '2026-07-30');
+    const displayed = facts.map((d) =>
+      d.maxHeatIndexF != null && d.maxHeatIndexF >= 80 ? Math.round(d.maxHeatIndexF) : 'omit'
+    );
+    expect(displayed).toEqual([84, 88, 'omit', 82, 85, 89, 91]);
+  });
+
+  it('represents exactly seven ordered local calendar days', async () => {
+    const f = await loadForecast();
+    const facts = buildDailyFacts(f, '2026-07-30');
+    expect(facts).toHaveLength(7);
+    expect(facts.map((d) => d.localDate)).toEqual([
+      '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02',
+      '2026-08-03', '2026-08-04', '2026-08-05',
+    ]);
+    expect(facts[0].isToday).toBe(true);
+    expect(facts.map((d) => d.dayName)).toEqual([
+      'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+    ]);
+  });
+
+  it("keeps a day's peak probability out of the following day's hours", async () => {
+    const f = await loadForecast();
+    const facts = buildDailyFacts(f, '2026-07-30');
+    const friday = facts[1];
+    expect(friday.peakPopPct).toBe(47); // not Saturday's 82
+    expect(friday.popByPart.overnight).toBe(82); // timing signal still reaches tomorrow
+  });
+});
+
+describe('Plainfield regression narrative', () => {
+  let brief: Awaited<ReturnType<typeof briefFor>>;
+  let allText = '';
+  const dayText = (name: string) =>
+    brief.days.find((d) => d.name.startsWith(name))?.text ?? `(missing ${name})`;
+
+  beforeEach(async () => {
+    brief = await briefFor();
+    allText = [brief.headline, ...brief.days.map((d) => `${d.name} — ${d.text}`), brief.footnote]
+      .join('\n');
+  });
+
+  it('passes every invariant without falling back', () => {
+    expect(brief.meta.invariantViolations).toEqual([]);
+  });
+
+  it('does not claim the heat index never exceeds air temperature', () => {
+    expect(brief.headline).not.toMatch(/never (?:exceed|runs above|tops)/i);
     expect(brief.headline).not.toMatch(/not a heat-index week/i);
   });
 
-  it('headline heat claim agrees with the daily heat-index lines (invariant)', () => {
-    // Headline says "no major heat" — then no day may report a large humidity load
-    if (/no major heat/i.test(brief.headline)) {
-      expect(allText).not.toMatch(/significant .*humidity load|humidity tax/i);
-      expect(allText).not.toMatch(/dangerous/i);
-    }
+  it('does not describe the week as comfortable', () => {
+    expect(brief.headline).not.toMatch(/\b(comfortable|pleasant)\b/i);
   });
 
-  it('does not call mid-60s..low-70s dew points comfortable', () => {
-    for (const day of ['Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday']) {
-      expect(dayText(day)).not.toMatch(/\bcomfortable\b/i);
-    }
-    expect(brief.headline).toMatch(/humid/i);
+  it('describes humidity as increasing', () => {
+    expect(brief.headline).toMatch(/humidity builds/i);
+    expect(brief.headline).toMatch(/mid 60s/i);
+    expect(brief.headline).toMatch(/low 70s/i);
   });
 
-  it('does not describe Saturday (75°F / dew 68°F) as near saturation', () => {
-    expect(dayText('Saturday')).not.toMatch(/saturation|saturated/i);
-    expect(dayText('Saturday')).toMatch(/damp|humid|muggy/i);
-  });
-
-  it('never guarantees wind keeps sweat evaporating', () => {
-    expect(allText).not.toMatch(/sweat/i);
-    expect(allText).not.toMatch(/no breeze to help/i);
-    // Thursday's 3 mph and Friday's 6 mph get restrained wording
-    expect(dayText('Thursday')).toMatch(/little wind relief|limited relief/i);
-  });
-
-  it("separates Friday's sunny daytime from its late rain", () => {
+  it("distinguishes Friday's rain timing from its mostly sunny daytime", () => {
     const fri = dayText('Friday');
-    expect(fri).toMatch(/for much of the day/i);
-    expect(fri).toMatch(/late in the day|overnight/i);
-    expect(fri).not.toMatch(/^.*likely.*for much of the day/i);
+    expect(fri).toMatch(/mostly sunny for much of the day/i);
+    expect(fri).toMatch(/increasing late in the day and overnight/i);
+    expect(fri).toMatch(/around 50%/);
   });
 
-  it('computes heat index from simultaneous hourly inputs', () => {
-    // A day whose max temperature and max humidity occur at different hours
-    // must NOT report HI(maxT, maxRH).
-    const periods = [
-      { startTime: '2026-07-30T08:00:00-04:00', temperature: 70, temperatureUnit: 'F', dewpoint: { value: 20 }, relativeHumidity: { value: 95 }, windSpeed: '5 mph', windDirection: 'N', probabilityOfPrecipitation: { value: 0 }, shortForecast: 'Sunny' },
-      { startTime: '2026-07-30T15:00:00-04:00', temperature: 95, temperatureUnit: 'F', dewpoint: { value: 15 }, relativeHumidity: { value: 30 }, windSpeed: '5 mph', windDirection: 'N', probabilityOfPrecipitation: { value: 0 }, shortForecast: 'Sunny' },
-    ];
-    const hours = parseHourly(periods);
-    const wrongCombined = calcFeelsLikeF(95, 95); // cross-hour pairing: absurd
-    for (const h of hours) {
-      expect(h.hiF).toBeLessThan(wrongCombined);
+  it('calls Saturday muggy but never near saturation', () => {
+    const sat = dayText('Saturday');
+    expect(sat).toMatch(/muggy/i);
+    expect(sat).not.toMatch(/saturation|saturated/i);
+    expect(sat).not.toMatch(/heat index/i); // 75°F day — not meaningful
+  });
+
+  it('rounds displayed probabilities to the nearest 10%', () => {
+    expect(dayText('Saturday')).toMatch(/around 80%/);
+    expect(dayText('Sunday')).toMatch(/around 30%/);
+    expect(dayText('Wednesday')).toMatch(/around 40%/);
+    for (const m of allText.matchAll(/(\d+)%/g)) {
+      expect(Number(m[1]) % 10).toBe(0);
     }
-    expect(Math.max(...hours.map((h) => h.hiF))).toBeLessThan(100);
   });
 
-  it('omits heat index when not meteorologically meaningful (Saturday high 75)', () => {
-    expect(dayText('Saturday')).not.toMatch(/heat index/i);
+  it('never guarantees evaporation or comfort from wind', () => {
+    expect(allText).not.toMatch(/sweat/i);
+    expect(allText).not.toMatch(/keep .* evaporating/i);
   });
 
-  it('presents probabilities rounded to the nearest 10%', () => {
-    const percents = [...allText.matchAll(/(\d+)%/g)].map((m) => Number(m[1]));
-    expect(percents.length).toBeGreaterThan(0);
-    for (const p of percents) expect(p % 10).toBe(0);
-  });
-
-  it('introduces no unsupported hazards', () => {
+  it('makes no unsupported coverage or hazard claim', () => {
     expect(allText).not.toMatch(/flood/i);
+    expect(allText).not.toMatch(/widespread/i);
+    expect(allText).not.toMatch(/heavy rain/i);
     expect(brief.alerts).toEqual([]);
   });
 
-  it('leads the concern with rain and thunderstorms developing late Friday into Saturday', () => {
-    expect(brief.headline).toMatch(/showers and thunderstorms developing late Friday/i);
-    expect(brief.headline).toMatch(/Friday night through Saturday/i);
+  it('leads with the supported storm threat over routine comfort commentary', () => {
+    expect(brief.headline).toMatch(/showers and thunderstorms/i);
+    expect(brief.headline).toMatch(/Saturday/);
   });
 
-  it('flags Wednesday as inferred beyond the hourly grid', () => {
-    const wed = brief.days.find((d) => d.name === 'Wednesday');
-    expect(wed?.firm).toBe(false);
-    expect(brief.footnote).toMatch(/Tuesday night/);
-    expect(brief.footnote).toMatch(/Wednesday/);
+  it('describes Wednesday with less certainty than Thursday', () => {
+    expect(dayText('Thursday')).toMatch(/^High 83\./);
+    expect(dayText('Wednesday')).toMatch(/currently forecast/i);
+    expect(dayText('Wednesday')).toMatch(/may still change/i);
   });
 
-  it('softens language on later firm days', () => {
-    expect(dayText('Tuesday')).toMatch(/currently forecast|can still shift/i);
+  it('uses sentence case for conditions', () => {
+    expect(allText).not.toMatch(/Showers And Thunderstorms/);
+    expect(allText).toMatch(/showers and thunderstorms/);
   });
 
-  it('carries official alerts through without altering the narrative', () => {
-    const withAlert = composeBrief(
-      parseHourly(plainfieldHourlyPeriods()),
-      plainfieldDailyPeriods(),
-      'Plainfield, IN',
-      ['Flood Watch']
-    );
-    expect(withAlert.alerts).toEqual(['Flood Watch']);
-    // The composer must not invent flood prose from the alert name
-    expect(withAlert.days.map((d) => d.text).join(' ')).not.toMatch(/flood/i);
+  it('reports runtime metadata for the running build', () => {
+    expect(brief.meta.analysisVersion).toBe('2.0.0');
+    expect(brief.meta.sourceProvider).toContain('NWS');
+    expect(brief.meta.sourceUpdatedAt).toBe(PLAINFIELD_SOURCE_UPDATED_AT);
+    expect(brief.meta.locationTimeZone).toBe('America/Indiana/Indianapolis');
+    expect(brief.meta.generatedAt).toBe(PLAINFIELD_NOW.toISOString());
   });
 
-  it('matches the full seven-day analysis snapshot', () => {
+  it('matches the full seven-day snapshot', () => {
     expect(allText).toMatchSnapshot();
   });
 });
 
-describe('v1 generator regression bans', () => {
+describe('alerts', () => {
+  it('leads the headline with an official alert when one is active', async () => {
+    const brief = await briefFor({
+      alertFeatures: [
+        { properties: { event: 'Flood Watch', severity: 'Severe', onset: '2026-07-31T18:00:00Z' } },
+      ],
+    });
+    expect(brief.alerts).toEqual(['Flood Watch']);
+    expect(brief.headline.startsWith('Flood Watch in effect')).toBe(true);
+  });
+
+  it('ranks alerts by severity', async () => {
+    const brief = await briefFor({
+      alertFeatures: [
+        { properties: { event: 'Heat Advisory', severity: 'Minor' } },
+        { properties: { event: 'Tornado Watch', severity: 'Extreme' } },
+      ],
+    });
+    expect(brief.alerts[0]).toBe('Tornado Watch');
+  });
+
+  it('never claims no alerts exist when the alert query failed', async () => {
+    const forecast = await loadForecast({ alertsFail: true });
+    expect(forecast.alertsStatus).toBe('unavailable');
+    const brief = composeOutlook(forecast, { now: PLAINFIELD_NOW });
+    expect(brief.footnote).toMatch(/could not be checked/i);
+    expect(brief.headline).not.toMatch(/no alerts|no active alerts/i);
+  });
+});
+
+describe('invariant enforcement', () => {
+  it('falls back deterministically when a narrative violates an invariant', async () => {
+    const forecast = await loadForecast();
+    const facts = buildDailyFacts(forecast, '2026-07-30');
+    const bad = {
+      headline: 'A comfortable week — the feels-like never exceeds the air temperature.',
+      days: facts.map((d) => ({ name: d.dayName, isToday: false, firm: true, text: 'Air near saturation.' })),
+      footnote: '',
+    };
+    const violations = validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0');
+    expect(violations.some((v) => /never exceeds/i.test(v))).toBe(true);
+    expect(violations.some((v) => /comfortable/i.test(v))).toBe(true);
+    expect(violations.some((v) => /near-saturation/i.test(v))).toBe(true);
+  });
+
+  it('rejects a narrative whose version disagrees with its cache key', async () => {
+    const forecast = await loadForecast();
+    const facts = buildDailyFacts(forecast, '2026-07-30');
+    const narrative = composeNarrative(facts, forecast, '1.0.0');
+    expect(narrative.invariantViolations.some((v) => /cache key version/i.test(v))).toBe(true);
+    expect(narrative.headline).toMatch(/detailed outlook is unavailable/i);
+  });
+
+  it('rejects untraceable numbers', async () => {
+    const forecast = await loadForecast();
+    const facts = buildDailyFacts(forecast, '2026-07-30');
+    const bad = {
+      headline: 'Heat index reaches 137 on Friday.',
+      days: [],
+      footnote: '',
+    };
+    expect(validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0')).toContain(
+      'untraceable number in narrative: 137'
+    );
+  });
+});
+
+describe('caching', () => {
+  it('never serves a v1 narrative to a v2 request', async () => {
+    const locationKey = locationKeyOf(LAT, LON);
+    const legacyKey = narrativeCacheKey('1.0.0', locationKey, PLAINFIELD_SOURCE_UPDATED_AT);
+    cacheSet(legacyKey, {
+      headline: 'This is not a heat-index week — the comfortable end of summer.',
+      days: [],
+      footnote: '',
+      analysisVersion: '1.0.0',
+      alerts: [],
+      locationName: null,
+      meta: {},
+    } as any, 60_000, PLAINFIELD_NOW.getTime());
+
+    const brief = await fetchOutlook(LAT, LON, {
+      now: PLAINFIELD_NOW,
+      load: plainfieldLoader(),
+    });
+    expect(brief.analysisVersion).toBe(NARRATIVE_RULESET_VERSION);
+    expect(brief.headline).not.toMatch(/not a heat-index week/i);
+    expect(brief.meta.narrativeCacheKey).toContain('narrative:2.0.0:');
+    // The stale entry is still present but unreachable by a v2 request
+    expect(cacheGet(legacyKey, PLAINFIELD_NOW.getTime())).not.toBeNull();
+  });
+
+  it('generates a new narrative key when the source timestamp changes', async () => {
+    const first = await fetchOutlook(LAT, LON, { now: PLAINFIELD_NOW, load: plainfieldLoader() });
+    resetCaches();
+    const second = await fetchOutlook(LAT, LON, {
+      now: PLAINFIELD_NOW,
+      load: plainfieldLoader({ sourceUpdatedAt: '2026-07-30T20:35:00+00:00' }),
+    });
+    expect(second.meta.narrativeCacheKey).not.toBe(first.meta.narrativeCacheKey);
+    expect(second.meta.sourceUpdatedAt).toBe('2026-07-30T20:35:00+00:00');
+  });
+
+  it('caches raw forecast data separately from the narrative', async () => {
+    await fetchOutlook(LAT, LON, { now: PLAINFIELD_NOW, load: plainfieldLoader() });
+    const keys = cacheKeys();
+    expect(keys.some((k) => k.startsWith('forecast:nws:'))).toBe(true);
+    expect(keys.some((k) => k.startsWith('narrative:2.0.0:'))).toBe(true);
+  });
+
+  it('reuses the cached brief for a repeat request within its TTL', async () => {
+    let calls = 0;
+    const counting = (options = {}) => {
+      const base = plainfieldLoader(options);
+      return async (url: string) => {
+        calls++;
+        return base(url);
+      };
+    };
+    await fetchOutlook(LAT, LON, { now: PLAINFIELD_NOW, load: counting() });
+    const firstCalls = calls;
+    await fetchOutlook(LAT, LON, { now: PLAINFIELD_NOW, load: counting() });
+    expect(calls).toBe(firstCalls); // served from cache, no refetch
+  });
+});
+
+describe('legacy prose can never return', () => {
   const composerSource = readFileSync(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../weather/narrative.ts'),
+    'utf8'
+  );
+  const outlookSource = readFileSync(
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../outlook.ts'),
     'utf8'
   );
 
-  it('the retired v1 phrases are gone from the composer source', () => {
-    expect(composerSource).not.toMatch(/not a heat-index week/i);
-    expect(composerSource).not.toMatch(/comfortable end of summer/i);
-    expect(composerSource).not.toMatch(/sweat evaporating/i);
+  const LEGACY = [
+    /this is not a heat-index week/i,
+    /comfortable end of summer/i,
+    /enough breeze to keep sweat evaporating/i,
+    /you won'?t dry off/i,
+    /no real humidity penalty/i,
+  ];
+
+  it('is absent from the generator sources except as an explicit ban', () => {
+    for (const phrase of LEGACY) {
+      // The narrative module lists them only inside its LEGACY_PHRASES guard
+      const occurrences = (composerSource.match(new RegExp(phrase.source, 'gi')) ?? []).length;
+      const inGuard = composerSource
+        .slice(composerSource.indexOf('const LEGACY_PHRASES'), composerSource.indexOf('/** Numbers a narrative'))
+        .match(new RegExp(phrase.source, 'gi'))?.length ?? 0;
+      expect(occurrences).toBe(inGuard);
+      expect(outlookSource).not.toMatch(phrase);
+    }
   });
 
-  it('the composed brief never emits the retired v1 phrases', () => {
-    expect(allText).not.toMatch(/not a heat-index week/i);
-    expect(allText).not.toMatch(/comfortable end of summer/i);
-    expect(allText).not.toMatch(/sweat evaporating/i);
-    // "near saturation" survives only behind the ≤3°F spread gate; the
-    // Plainfield fixture (75°F/68°F Saturday) must not trip it
-    expect(allText).not.toMatch(/near saturation/i);
+  it('is absent from generated output', async () => {
+    const brief = await briefFor();
+    const text = [brief.headline, ...brief.days.map((d) => d.text), brief.footnote].join('\n');
+    for (const phrase of LEGACY) expect(text).not.toMatch(phrase);
   });
 
-  it('stamps the analysis version so stale deployments are identifiable', () => {
-    expect(brief.analysisVersion).toBe('2.0.0');
+  it('would be caught by validation if it ever reappeared', async () => {
+    const forecast = await loadForecast();
+    const facts = buildDailyFacts(forecast, '2026-07-30');
+    const bad = {
+      headline: 'This is not a heat-index week.',
+      days: [],
+      footnote: '',
+    };
+    expect(validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0').length).toBeGreaterThan(0);
+  });
+});
+
+describe('helpers', () => {
+  it('sentence-cases NWS Title Case conditions', () => {
+    expect(sentenceCaseCondition('Showers And Thunderstorms')).toBe('showers and thunderstorms');
+    expect(sentenceCaseCondition('Chance Showers')).toBe('chance of showers');
   });
 });

@@ -1,6 +1,13 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  // Surface the deployed commit and deployment id to the client so the running
+  // build is identifiable from the outlook payload.
+  env: {
+    NEXT_PUBLIC_BUILD_COMMIT:
+      process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.BUILD_COMMIT ?? '',
+    NEXT_PUBLIC_DEPLOYMENT_ID: process.env.VERCEL_DEPLOYMENT_ID ?? '',
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

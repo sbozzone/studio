@@ -30,7 +30,12 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
         lon = pos.coords.longitude;
       }
       const next = await fetchOutlook(lat, lon);
-      console.info(`[outlook] analysis v${next.analysisVersion}`);
+      // Structured runtime metadata: identifies which build and ruleset
+      // produced the prose on screen without cluttering the interface.
+      console.info('[outlook]', next.meta);
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __outlookMeta?: unknown }).__outlookMeta = next.meta;
+      }
       setBrief(next);
       setStatus('ready');
     } catch (err) {
@@ -75,7 +80,15 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
       </CardHeader>
 
       {status === 'ready' && brief && (
-        <CardContent className="flex flex-col gap-4 pt-2">
+        <CardContent
+          className="flex flex-col gap-4 pt-2"
+          data-analysis-version={brief.meta.analysisVersion}
+          data-build-commit={brief.meta.buildCommit ?? 'unknown'}
+          data-source-provider={brief.meta.sourceProvider}
+          data-source-updated-at={brief.meta.sourceUpdatedAt ?? 'unknown'}
+          data-generated-at={brief.meta.generatedAt}
+          data-location-time-zone={brief.meta.locationTimeZone}
+        >
           {brief.alerts.length > 0 && (
             <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
               ⚠ {brief.alerts.join(' · ')} in effect — see weather.gov for official details.
@@ -101,7 +114,7 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
 
           <p className="text-xs text-muted-foreground">
             {brief.footnote}
-            <span className="opacity-60"> · analysis v{brief.analysisVersion}</span>
+            <span className="opacity-60"> · v{brief.meta.analysisVersion}</span>
           </p>
         </CardContent>
       )}
