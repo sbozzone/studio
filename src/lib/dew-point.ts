@@ -1,9 +1,16 @@
 /**
- * Dew point math and the standard meteorological comfort scale.
+ * Dew point math and this product's dew-point comfort legend.
  *
  * Dew point is computed from air temperature and relative humidity using the
  * Magnus-Tetens approximation (accurate to within ~0.1 °C for -45..60 °C).
+ *
+ * The comfort bands below are a product-specific legend for describing how
+ * humid air feels — they are not an official NWS classification. Heat-index
+ * math lives in `@/lib/weather/heat-index`.
  */
+
+import { apparentTemperatureF } from '@/lib/weather/heat-index';
+import type { DewPointCategory } from '@/lib/weather/types';
 
 const MAGNUS_A = 17.625;
 const MAGNUS_B = 243.04; // °C
@@ -19,50 +26,18 @@ export const cToF = (c: number): number => (c * 9) / 5 + 32;
 export const fToC = (f: number): number => ((f - 32) * 5) / 9;
 
 /**
- * "Feels like" temperature in °F from air temperature (°F) and relative
- * humidity, using the NWS heat index (Rothfusz regression with the official
- * low/high-humidity adjustments), blending through Steadman's simple formula
- * near the bottom of its range. Below ~68 °F humidity stops affecting how warm
- * it feels and wind chill would need wind speed, so the air temperature is
- * returned as-is.
+ * What the air feels like from heat alone: the NWS heat index once it is
+ * meaningful (≥80 °F), otherwise the air temperature.
  */
-export function calcFeelsLikeF(tempF: number, relativeHumidity: number): number {
-  const T = tempF;
-  if (T < 68) return T;
-  const RH = Math.min(100, Math.max(0, relativeHumidity));
-  const simple = 0.5 * (T + 61.0 + (T - 68.0) * 1.2 + RH * 0.094);
-  if ((simple + T) / 2 < 80) return simple;
-
-  let hi =
-    -42.379 +
-    2.04901523 * T +
-    10.14333127 * RH -
-    0.22475541 * T * RH -
-    0.00683783 * T * T -
-    0.05481717 * RH * RH +
-    0.00122874 * T * T * RH +
-    0.00085282 * T * RH * RH -
-    0.00000199 * T * T * RH * RH;
-
-  if (RH < 13 && T >= 80 && T <= 112) {
-    hi -= ((13 - RH) / 4) * Math.sqrt((17 - Math.abs(T - 95)) / 17);
-  } else if (RH > 85 && T >= 80 && T <= 87) {
-    hi += ((RH - 85) / 10) * ((87 - T) / 5);
-  }
-  // The regression is only charted to ~110 °F air temperature; slider what-ifs
-  // beyond it (e.g. 120 °F at 66 % RH) explode into fantasy numbers, so cap at
-  // the top of the NWS chart.
-  return Math.min(hi, 140);
-}
+export { apparentTemperatureF as calcFeelsLikeF };
 
 export interface ComfortLevel {
-  /** Short label, e.g. "Oppressive" */
-  label: string;
+  label: DewPointCategory;
   /** Two-to-three-word feel, e.g. "Humid and close" */
   tagline: string;
   /** One-sentence description of how it feels */
   description: string;
-  /** Dew point range in °F: [minF, maxF) — Infinity for the top band */
+  /** Dew point range in °F: [minF, maxF) — continuous and non-overlapping */
   minF: number;
   maxF: number;
   /** Bright display color for the scale bar and reference dots (hex) */
@@ -73,10 +48,6 @@ export interface ComfortLevel {
   ink: string;
 }
 
-/**
- * The dew point comfort scale commonly used by US meteorologists / the NWS.
- * Bands are defined in °F because that is how the scale is usually quoted.
- */
 export const COMFORT_LEVELS: ComfortLevel[] = [
   {
     label: 'Dry',
@@ -93,7 +64,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     tagline: 'Fresh and easy',
     description: 'Very comfortable. Crisp, pleasant air that most people find ideal.',
     minF: 50,
-    maxF: 55,
+    maxF: 56,
     color: '#34d399',
     fill: '#3F7D5F',
     ink: '#2E5E47',
@@ -102,8 +73,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     label: 'Comfortable',
     tagline: 'Barely noticeable',
     description: 'Comfortable for the vast majority of people. Humidity goes unnoticed.',
-    minF: 55,
-    maxF: 60,
+    minF: 56,
+    maxF: 61,
     color: '#a3e635',
     fill: '#5F7334',
     ink: '#4A5A28',
@@ -112,8 +83,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
     label: 'Sticky',
     tagline: 'Humid and close',
     description: 'Getting sticky. The humidity is noticeable, though still tolerable for most.',
-    minF: 60,
-    maxF: 65,
+    minF: 61,
+    maxF: 66,
     color: '#facc15',
     fill: '#9A7B2E',
     ink: '#7A6124',
@@ -121,8 +92,8 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   {
     label: 'Muggy',
     tagline: 'Heavy and damp',
-    description: 'Muggy and humid — the air feels heavy and sweat stops evaporating well.',
-    minF: 65,
+    description: 'Muggy and humid — the air feels heavy and sweat evaporates slowly.',
+    minF: 66,
     maxF: 70,
     color: '#fb923c',
     fill: '#A85F32',
@@ -140,7 +111,7 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
   {
     label: 'Miserable',
-    tagline: 'Tropical and hazardous',
+    tagline: 'Tropical and heavy',
     description: 'Miserable, tropical-level moisture. Outdoor exertion can be hazardous.',
     minF: 75,
     maxF: Infinity,
@@ -150,18 +121,20 @@ export const COMFORT_LEVELS: ComfortLevel[] = [
   },
 ];
 
+export function getComfortLevel(dewPointF: number): ComfortLevel {
+  return (
+    COMFORT_LEVELS.find((l) => dewPointF >= l.minF && dewPointF < l.maxF) ??
+    COMFORT_LEVELS[COMFORT_LEVELS.length - 1]
+  );
+}
+
 /**
- * The single source of truth for dew-point comfort language in prose.
- * Mid-60s through low-70s dew points are humid — never "comfortable".
+ * The single source of dew-point comfort language in prose. Derived from the
+ * legend above, so prose and the on-screen scale can never disagree — and a
+ * dew point of 61 °F or higher is never called comfortable or pleasant.
  */
 export function dewPointDescriptor(dewPointF: number): string {
-  const dp = Math.round(dewPointF);
-  if (dp <= 55) return 'dry and comfortable';
-  if (dp <= 60) return 'generally comfortable';
-  if (dp <= 65) return 'becoming sticky';
-  if (dp <= 69) return 'muggy';
-  if (dp <= 74) return 'oppressive';
-  return 'very oppressive';
+  return getComfortLevel(dewPointF).label.toLowerCase();
 }
 
 /**
@@ -191,11 +164,4 @@ export function yesterdayComparison(todayF: number, yesterdayF: number, unit: 'F
 
   const fmt = (f: number) => `${Math.round(unit === 'F' ? f : fToC(f))}°`;
   return `${phrase} (${fmt(todayF)} vs ${fmt(yesterdayF)}${bandNote}).`;
-}
-
-export function getComfortLevel(dewPointF: number): ComfortLevel {
-  return (
-    COMFORT_LEVELS.find((l) => dewPointF >= l.minF && dewPointF < l.maxF) ??
-    COMFORT_LEVELS[COMFORT_LEVELS.length - 1]
-  );
 }

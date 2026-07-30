@@ -1,13 +1,13 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Plainfield regression brief > matches the full seven-day analysis snapshot 1`] = `
-"No major heat episode is expected. Afternoon heat indices should stay close to the air temperature through Saturday, then run roughly 3–6° warmer from Sunday on. It will still feel humid, with dew points ranging from the mid 60s to low 70s. The primary concern is showers and thunderstorms developing late Friday, with the greatest rain potential Friday night through Saturday.
-Thursday (today) — High 84. Dew point steady near 64 — becoming sticky. Afternoon heat index stays within a couple degrees of the air temperature. Sunny. Nearly calm air — little wind relief. In direct sun it will feel hotter than the listed heat index.
-Friday — High 86. Dew point steady near 65 — becoming sticky. Afternoon heat index stays within a couple degrees of the air temperature. Mostly sunny for much of the day, with rain chances increasing late in the day and overnight (peak chance around 80%). Winds remain light, offering limited relief.
-Saturday — High near 75 expected. Dew point steady near 68 — muggy. Showers and thunderstorms likely, peak rain chance around 80%. Not hot, but damp and humid — a muggy day even between showers. A noticeable SE breeze of around 9 mph may provide some relief.
-Sunday — High near 80 expected. Dew point steady near 67 — muggy. Afternoon heat index is expected to reach about 83, a few degrees above the air temperature. Partly sunny. Winds remain light, offering limited relief.
-Monday — Currently forecast to reach 82. Dew point steady near 68 — muggy. Afternoon heat index is expected to reach about 85, a few degrees above the air temperature. Mostly sunny, peak rain chance around 30%. Details this far out can still shift.
-Tuesday — Currently forecast to reach 84. Dew point steady near 71 — oppressive. Heat index is expected to reach about 90, roughly 6° above the air temperature. Mostly sunny, peak rain chance around 30%. Details this far out can still shift.
-Wednesday — High near 85 currently forecast. Chance of showers and thunderstorms. Wind SW 5 to 10 mph. Southerly flow tends to bring moisture back — it may feel more humid than the numbers suggest.
-Firm hourly dewpoint numbers run through Tuesday night; Wednesday is read from the 7-day pattern, not published hourlies, and details there often shift. Best windows to be outside: today and Friday."
+exports[`Plainfield regression narrative > matches the full seven-day snapshot 1`] = `
+"Rain chances increase late Friday, with showers and thunderstorms likely Saturday (peak chance around 80%). Heat is not the primary concern, but heat indices may reach around 91 by Wednesday. Humidity builds through the week, with dew points rising from the mid 60s into the low 70s.
+Thursday (today) — High 83. Dew point steady near 64 — sticky. Heat index peaks near 84, close to the air temperature. Sunny.
+Friday — High 86. Dew point steady near 65 — sticky. Heat index peaks near 88, close to the air temperature. Mostly sunny for much of the day, with rain chances increasing late in the day and overnight — peak chance around 50%.
+Saturday — High near 75 expected. Dew point steady near 68 — muggy. Showers and thunderstorms, peak rain chance around 80%. Not hot, but humid enough to feel heavy between showers.
+Sunday — High near 80 expected. Dew point steady near 67 — muggy. Heat index expected to peak near 82, close to the air temperature. Chance of showers, peak rain chance around 30%.
+Monday — Currently forecast near 82. Dew point steady near 68 — muggy. Heat index expected to peak near 85, about 3° above the air temperature. Mostly sunny. Timing may still change.
+Tuesday — Currently forecast near 84. Dew point steady near 71 — oppressive. Heat index expected to peak near 89, about 5° above the air temperature. Sunny. Air stays mostly still, offering limited relief. Timing may still change.
+Wednesday — Currently forecast near 85. Dew point steady near 72 — oppressive. Heat index expected to peak near 91, about 6° above the air temperature. Chance of showers, peak rain chance around 40%. Winds stay light and variable, so there is little relief in the sun. Timing may still change.
+Every day above is backed by the NWS hourly grid."
 `;

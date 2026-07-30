@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  calcDewPointC,
-  calcFeelsLikeF,
-  cToF,
-  dewPointDescriptor,
-  getComfortLevel,
-} from '@/lib/dew-point';
+import { COMFORT_LEVELS, calcDewPointC, cToF, dewPointDescriptor, getComfortLevel } from '@/lib/dew-point';
+import { windCategoryOf } from '@/lib/weather/daily-facts';
+import { roundPop } from '@/lib/weather/narrative';
+import { parseWindRangeMph } from '@/lib/weather/nws';
 
 describe('calcDewPointC (Magnus)', () => {
   it('matches published reference values', () => {
@@ -15,40 +12,88 @@ describe('calcDewPointC (Magnus)', () => {
   });
 });
 
-describe('calcFeelsLikeF (NOAA/NWS heat index)', () => {
-  it('matches the published NWS table within a degree', () => {
-    expect(calcFeelsLikeF(90, 70)).toBeGreaterThanOrEqual(104);
-    expect(calcFeelsLikeF(90, 70)).toBeLessThanOrEqual(106);
-    expect(calcFeelsLikeF(100, 40)).toBeCloseTo(109, 0);
-    expect(calcFeelsLikeF(80, 40)).toBeCloseTo(80, 0);
+describe('dew-point legend boundaries', () => {
+  const cases: [number, string][] = [
+    [49, 'Dry'],
+    [49.9, 'Dry'],
+    [50, 'Pleasant'],
+    [55, 'Pleasant'],
+    [55.9, 'Pleasant'],
+    [56, 'Comfortable'],
+    [60, 'Comfortable'],
+    [60.9, 'Comfortable'],
+    [61, 'Sticky'],
+    [65, 'Sticky'],
+    [65.9, 'Sticky'],
+    [66, 'Muggy'],
+    [69, 'Muggy'],
+    [69.9, 'Muggy'],
+    [70, 'Oppressive'],
+    [74, 'Oppressive'],
+    [74.9, 'Oppressive'],
+    [75, 'Miserable'],
+    [80, 'Miserable'],
+  ];
+  it.each(cases)('%s°F → %s', (dp, label) => {
+    expect(getComfortLevel(dp).label).toBe(label);
   });
-  it('returns air temperature below the heat-index regime', () => {
-    expect(calcFeelsLikeF(-20, 67)).toBe(-20);
-    expect(calcFeelsLikeF(60, 90)).toBe(60);
+
+  it('is continuous and non-overlapping', () => {
+    const levels = [...COMFORT_LEVELS].sort((a, b) => a.minF - b.minF);
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i].minF).toBe(levels[i - 1].maxF);
+    }
   });
-  it('caps output at the top of the NWS chart for impossible inputs', () => {
-    expect(calcFeelsLikeF(120, 66)).toBe(140);
+
+  it('never calls a dew point of 61°F or higher comfortable or pleasant', () => {
+    for (let dp = 61; dp <= 85; dp++) {
+      const text = dewPointDescriptor(dp);
+      expect(text).not.toMatch(/comfortable|pleasant/);
+    }
+  });
+
+  it('shares one vocabulary between prose and the on-screen legend', () => {
+    for (const dp of [45, 52, 58, 63, 68, 72, 78]) {
+      expect(dewPointDescriptor(dp)).toBe(getComfortLevel(dp).label.toLowerCase());
+    }
   });
 });
 
-describe('dewPointDescriptor', () => {
-  it('uses the standard category boundaries', () => {
-    expect(dewPointDescriptor(50)).toBe('dry and comfortable');
-    expect(dewPointDescriptor(55)).toBe('dry and comfortable');
-    expect(dewPointDescriptor(58)).toBe('generally comfortable');
-    expect(dewPointDescriptor(63)).toBe('becoming sticky');
-    expect(dewPointDescriptor(68)).toBe('muggy');
-    expect(dewPointDescriptor(72)).toBe('oppressive');
-    expect(dewPointDescriptor(76)).toBe('very oppressive');
+describe('wind category boundaries', () => {
+  it.each([
+    [0, 'calm'],
+    [3, 'calm'],
+    [3.1, 'light'],
+    [7, 'light'],
+    [7.1, 'noticeable'],
+    [12, 'noticeable'],
+    [12.1, 'breezy'],
+    [25, 'breezy'],
+  ])('%s mph → %s', (mph, category) => {
+    expect(windCategoryOf(mph as number)).toBe(category);
   });
-  it('never calls mid-60s through low-70s dew points comfortable', () => {
-    for (let dp = 63; dp <= 74; dp++) {
-      expect(dewPointDescriptor(dp)).not.toContain('comfortable');
-    }
+});
+
+describe('precipitation probability rounding', () => {
+  it.each([
+    [47, 50],
+    [82, 80],
+    [31, 30],
+    [37, 40],
+    [0, 0],
+    [4, 0],
+    [5, 10],
+    [95, 100],
+  ])('%s%% displays as %s%%', (raw, displayed) => {
+    expect(roundPop(raw as number)).toBe(displayed);
   });
-  it('stays directionally consistent with the badge scale', () => {
-    // Both vocabularies must agree that 72°F dew point air is oppressive
-    expect(dewPointDescriptor(72)).toBe('oppressive');
-    expect(getComfortLevel(72).label).toBe('Oppressive');
+});
+
+describe('wind string parsing', () => {
+  it('handles ranges, single values and missing data', () => {
+    expect(parseWindRangeMph('5 to 10 mph')).toEqual([5, 10]);
+    expect(parseWindRangeMph('7 mph')).toEqual([7, 7]);
+    expect(parseWindRangeMph(null)).toEqual([null, null]);
+    expect(parseWindRangeMph('')).toEqual([null, null]);
   });
 });
