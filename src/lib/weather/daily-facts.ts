@@ -115,12 +115,22 @@ export function buildDailyFacts(
     const dewMin = minOrNull(dewValues);
     const dewMedian = median(dewValues);
 
-    const spreads = comfortHours
+    // Saturation evidence comes from the midday/afternoon window only — the
+    // hours a day-level comfort claim actually describes. Early-morning air
+    // sitting at its dew point is normal and says nothing about the afternoon.
+    const middayWindow = comfortHours.filter((p) => p.localHour >= 11 && p.localHour <= 18);
+    const saturationHours = middayWindow.length >= 3 ? middayWindow : comfortHours;
+    const spreads = saturationHours
       .filter((p) => p.temperatureF != null && p.dewPointF != null)
       .map((p) => p.temperatureF! - p.dewPointF!);
-    const rhValues = comfortHours
+    const rhValues = saturationHours
       .map((p) => p.relativeHumidityPct)
       .filter((v): v is number => v != null);
+    const saturatedHoursCount = saturationHours.filter((p) => {
+      const spread =
+        p.temperatureF != null && p.dewPointF != null ? p.temperatureF - p.dewPointF : null;
+      return (spread != null && spread <= 3) || (p.relativeHumidityPct ?? 0) >= 90;
+    }).length;
 
     const windHours = comfortHours
       .map(hourWindMph)
@@ -191,6 +201,7 @@ export function buildDailyFacts(
       dewPointCategory: dewMedian != null ? getComfortLevel(dewMedian).label : null,
       minSpreadF: minOrNull(spreads),
       maxDaytimeRhPct: maxOrNull(rhValues),
+      saturatedHoursCount,
       windMedianMph: windMedian,
       windMinMph: windMin,
       windMaxMph: windMax,
@@ -252,6 +263,7 @@ function extendedToFacts(ext: ExtendedPeriod, timeZone: string): DailyFacts {
     dewPointCategory: null,
     minSpreadF: null,
     maxDaytimeRhPct: null,
+    saturatedHoursCount: null,
     windMedianMph: windMedian,
     windMinMph: windMin,
     windMaxMph: windMax,

@@ -268,7 +268,7 @@ describe('Plainfield regression narrative', () => {
   });
 
   it('reports runtime metadata for the running build', () => {
-    expect(brief.meta.analysisVersion).toBe('2.0.0');
+    expect(brief.meta.analysisVersion).toBe('2.1.0');
     expect(brief.meta.sourceProvider).toContain('NWS');
     expect(brief.meta.sourceUpdatedAt).toBe(PLAINFIELD_SOURCE_UPDATED_AT);
     expect(brief.meta.locationTimeZone).toBe('America/Indiana/Indianapolis');
@@ -367,7 +367,7 @@ describe('caching', () => {
     });
     expect(brief.analysisVersion).toBe(NARRATIVE_RULESET_VERSION);
     expect(brief.headline).not.toMatch(/not a heat-index week/i);
-    expect(brief.meta.narrativeCacheKey).toContain('narrative:2.0.0:');
+    expect(brief.meta.narrativeCacheKey).toContain(`narrative:${NARRATIVE_RULESET_VERSION}:`);
     // The stale entry is still present but unreachable by a v2 request
     expect(cacheGet(legacyKey, PLAINFIELD_NOW.getTime())).not.toBeNull();
   });
@@ -387,7 +387,7 @@ describe('caching', () => {
     await fetchOutlook(LAT, LON, { now: PLAINFIELD_NOW, load: plainfieldLoader() });
     const keys = cacheKeys();
     expect(keys.some((k) => k.startsWith('forecast:nws:'))).toBe(true);
-    expect(keys.some((k) => k.startsWith('narrative:2.0.0:'))).toBe(true);
+    expect(keys.some((k) => k.startsWith(`narrative:${NARRATIVE_RULESET_VERSION}:`))).toBe(true);
   });
 
   it('reuses the cached brief for a repeat request within its TTL', async () => {
@@ -458,5 +458,175 @@ describe('helpers', () => {
   it('sentence-cases NWS Title Case conditions', () => {
     expect(sentenceCaseCondition('Showers And Thunderstorms')).toBe('showers and thunderstorms');
     expect(sentenceCaseCondition('Chance Showers')).toBe('chance of showers');
+    expect(sentenceCaseCondition('Slight Chance Rain Showers')).toBe('slight chance of rain showers');
+  });
+});
+
+/** Builds a normalized forecast directly, for surgical narrative cases. */
+function syntheticForecast(
+  daySpecs: {
+    date: string;
+    hours: { h: number; tempF: number; dewF: number; pop?: number; condition?: string }[];
+  }[],
+  overrides: Partial<import('@/lib/weather/types').NormalizedForecast> = {}
+): import('@/lib/weather/types').NormalizedForecast {
+  const g = (c: number) => (17.625 * c) / (243.04 + c);
+  const toC = (f: number) => ((f - 32) * 5) / 9;
+  const rh = (t: number, d: number) =>
+    Math.min(100, Math.round(100 * Math.exp(g(toC(d)) - g(toC(t)))));
+  return {
+    provider: 'NWS api.weather.gov',
+    locationName: 'Test, IN',
+    locationTimeZone: 'America/Indiana/Indianapolis',
+    sourceUpdatedAt: '2026-07-30T12:00:00+00:00',
+    periods: daySpecs.flatMap((day) =>
+      day.hours.map(({ h, tempF, dewF, pop = 0, condition = 'Sunny' }) => ({
+        validStart: `${day.date}T${String(h).padStart(2, '0')}:00:00-04:00`,
+        validEnd: `${day.date}T${String(h + 1).padStart(2, '0')}:00:00-04:00`,
+        localDate: day.date,
+        localHour: h,
+        temperatureF: tempF,
+        dewPointF: dewF,
+        relativeHumidityPct: rh(tempF, dewF),
+        relativeHumidityDerived: false,
+        windSpeedMinMph: 5,
+        windSpeedMaxMph: 7,
+        windGustMph: null,
+        windDirection: 'SW',
+        precipitationProbabilityPct: pop,
+        precipitationAmountIn: null,
+        condition,
+      }))
+    ),
+    extendedPeriods: [],
+    alerts: [],
+    alertsStatus: 'ok',
+    hasPrecipitationAmounts: false,
+    ...overrides,
+  };
+}
+
+const fullDay = (
+  date: string,
+  make: (h: number) => { tempF: number; dewF: number; pop?: number; condition?: string }
+) => ({ date, hours: Array.from({ length: 24 }, (_, h) => ({ h, ...make(h) })) });
+
+describe('saturation is judged on the daypart being described', () => {
+  it('a saturated dawn does not brand a sunny 82°F afternoon (production regression)', () => {
+    // Morning hours sit at the dew point (RH ~100%); afternoon is 82/68
+    const forecast = syntheticForecast([
+      fullDay('2026-08-02', (h) => ({
+        tempF: h < 10 ? 69 : 82,
+        dewF: 68,
+        pop: 20,
+        condition: 'Mostly Sunny',
+      })),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-02T12:00:00-04:00') });
+    expect(brief.days[0].text).not.toMatch(/saturation|saturated|raw/i);
+    expect(brief.days[0].text).toMatch(/muggy/i);
+    expect(brief.meta.invariantViolations).toEqual([]);
+  });
+
+  it('persistent afternoon saturation with rain qualifies — and warm air is never "raw"', () => {
+    const forecast = syntheticForecast([
+      fullDay('2026-08-02', () => ({
+        tempF: 78,
+        dewF: 76.5,
+        pop: 70,
+        condition: 'Rain Showers',
+      })),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-02T12:00:00-04:00') });
+    expect(brief.days[0].text).toMatch(/near saturation/i);
+    expect(brief.days[0].text).not.toMatch(/\braw\b/i);
+    expect(brief.days[0].text).toMatch(/heavy/i);
+    expect(brief.meta.invariantViolations).toEqual([]);
+  });
+
+  it('cool saturated air may read raw', () => {
+    const forecast = syntheticForecast([
+      fullDay('2026-08-02', () => ({ tempF: 62, dewF: 61, pop: 60, condition: 'Drizzle' })),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-02T12:00:00-04:00') });
+    expect(brief.days[0].text).toMatch(/raw/i);
+    expect(brief.meta.invariantViolations).toEqual([]);
+  });
+
+  it('the validator rejects a saturation claim the daypart evidence does not support', async () => {
+    const forecast = syntheticForecast([
+      fullDay('2026-08-02', (h) => ({ tempF: h < 10 ? 69 : 82, dewF: 68, pop: 20 })),
+    ]);
+    const facts = buildDailyFacts(forecast, '2026-08-02');
+    const bad = {
+      headline: '',
+      days: [{ name: 'Sunday', isToday: false, firm: true, text: 'Air stays near saturation — damp and heavy.' }],
+      footnote: '',
+    };
+    const violations = validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0');
+    expect(violations.some((v) => /near-saturation claim unsupported/i.test(v))).toBe(true);
+  });
+});
+
+describe('probability qualifiers cannot collide with numeric chances', () => {
+  it('"Slight Chance Rain Showers" at 37% renders as a chance with ~40%', () => {
+    const forecast = syntheticForecast([
+      fullDay('2026-08-05', () => ({
+        tempF: 85,
+        dewF: 72,
+        pop: 37,
+        condition: 'Slight Chance Rain Showers',
+      })),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-05T12:00:00-04:00') });
+    const text = brief.days[0].text;
+    expect(text).toMatch(/A chance of rain showers, peak chance around 40%/);
+    expect(text).not.toMatch(/slight/i);
+    expect(text).not.toMatch(/Slight Chance|Rain Showers/); // no Title Case survivors
+  });
+
+  it('a likely condition at high probability keeps its strength without duplication', () => {
+    const forecast = syntheticForecast([
+      fullDay('2026-08-01', () => ({
+        tempF: 74,
+        dewF: 68,
+        pop: 82,
+        condition: 'Showers And Thunderstorms Likely',
+      })),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-01T12:00:00-04:00') });
+    expect(brief.days[0].text).toMatch(/Showers and thunderstorms likely, peak rain chance around 80%/);
+    expect(brief.days[0].text).not.toMatch(/likely likely/i);
+  });
+});
+
+describe('comfort sentences do not repeat on consecutive days', () => {
+  it('drops a verbatim repeat and validation would catch one that slipped through', () => {
+    const humidStormDay = (date: string) =>
+      fullDay(date, () => ({ tempF: 76, dewF: 68, pop: 75, condition: 'Showers And Thunderstorms' }));
+    const forecast = syntheticForecast([
+      humidStormDay('2026-08-01'),
+      humidStormDay('2026-08-02'),
+    ]);
+    const brief = composeOutlook(forecast, { now: new Date('2026-08-01T12:00:00-04:00') });
+    const comfort = 'Not hot, but humid enough to feel heavy between showers.';
+    expect(brief.days[0].text).toContain(comfort);
+    expect(brief.days[1].text).not.toContain(comfort);
+    expect(brief.meta.invariantViolations).toEqual([]);
+
+    const facts = buildDailyFacts(forecast, '2026-08-01');
+    const bad = {
+      headline: '',
+      days: facts.map((d) => ({
+        name: d.dayName, isToday: d.isToday, firm: true,
+        text: 'Not hot, but humid enough to feel heavy between showers.',
+      })),
+      footnote: '',
+    };
+    expect(
+      validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0').some((v) =>
+        /repeated on consecutive days/i.test(v)
+      )
+    ).toBe(true);
   });
 });
