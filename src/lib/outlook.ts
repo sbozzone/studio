@@ -21,6 +21,14 @@
 
 import { calcFeelsLikeF, cToF, dewPointDescriptor } from '@/lib/dew-point';
 
+/**
+ * Bumped whenever the narrative logic changes. Displayed with the brief so a
+ * stale deployment or cached bundle is immediately identifiable on screen —
+ * the narrative itself is composed client-side on every request and is never
+ * cached by the app, so an old narrative always means old JS is running.
+ */
+export const ANALYSIS_VERSION = '2.0.0';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface HourStat {
@@ -83,6 +91,8 @@ interface InferredDay {
 
 export interface OutlookBrief {
   locationName: string | null;
+  /** Version of the narrative logic that produced this brief */
+  analysisVersion: string;
   /** Active NWS alert event names, most important first (may be empty) */
   alerts: string[];
   headline: string;
@@ -562,6 +572,7 @@ export function composeBrief(
 
   return {
     locationName,
+    analysisVersion: ANALYSIS_VERSION,
     alerts,
     headline: headline(firmDays, findRainStory(firmDays)),
     days,
