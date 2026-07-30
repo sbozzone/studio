@@ -103,10 +103,21 @@ export interface DailyFacts {
   dewPointRangeF: number | null;
   dewPointCategory: DewPointCategory | null;
 
-  /** Smallest simultaneous temperature − dew point spread during daytime hours */
+  /**
+   * Smallest simultaneous temperature − dew point spread during the midday/
+   * afternoon window (11:00–18:00 local). Dawn hours are excluded on purpose:
+   * humid mornings routinely touch saturation without saying anything about
+   * how the day itself will feel.
+   */
   minSpreadF: number | null;
-  /** Highest simultaneous daytime relative humidity */
+  /** Highest simultaneous relative humidity in the same midday/afternoon window */
   maxDaytimeRhPct: number | null;
+  /**
+   * Hours in the midday/afternoon window whose own temp/dew-point spread is
+   * ≤3 °F or RH ≥90 % — the persistence evidence a "near saturation" claim
+   * must cite.
+   */
+  saturatedHoursCount: number | null;
 
   windMedianMph: number | null;
   windMinMph: number | null;

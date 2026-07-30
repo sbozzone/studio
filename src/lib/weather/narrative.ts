@@ -11,8 +11,13 @@ import { dewPointDescriptor } from '@/lib/dew-point';
 import { isHeatIndexMeaningful } from '@/lib/weather/heat-index';
 import type { DailyFacts, DayPart, NormalizedForecast } from '@/lib/weather/types';
 
-/** The one place the ruleset version is defined. */
-export const NARRATIVE_RULESET_VERSION = '2.0.0';
+/**
+ * The one place the ruleset version is defined. Bumped on every change to the
+ * narrative rules so version-keyed caches can never pair old prose with a new
+ * engine. 2.1.0: daypart-scoped saturation, probability-qualifier cleanup,
+ * consecutive-day comfort dedupe.
+ */
+export const NARRATIVE_RULESET_VERSION = '2.1.0';
 
 export interface NarrativeDay {
   name: string;
@@ -69,8 +74,22 @@ export function hasLateArrivingRain(d: DailyFacts): boolean {
   return late >= 40 && early <= 30 && late - early >= 20;
 }
 
-const isNearSaturation = (d: DailyFacts): boolean =>
-  (d.minSpreadF != null && d.minSpreadF <= 3) || (d.maxDaytimeRhPct != null && d.maxDaytimeRhPct >= 90);
+/**
+ * A day may be called near saturation only when the evidence sits in the
+ * daypart being described: at least two midday/afternoon hours whose OWN
+ * simultaneous spread is ≤3 °F or RH ≥90 %, and weather that supports it
+ * (fog, or a real rain chance). A damp dawn never qualifies the afternoon.
+ */
+export const qualifiesNearSaturation = (d: DailyFacts): boolean =>
+  (d.saturatedHoursCount ?? 0) >= 2 &&
+  ((d.peakPopPct ?? 0) >= 50 || /fog|mist|drizzle/i.test(d.condition ?? ''));
+
+function saturationClause(d: DailyFacts): string {
+  // "Raw" is cold-weather language; near 80 °F saturated air feels heavy
+  return (d.highTemperatureF ?? 75) <= 70
+    ? 'Air stays near saturation — damp and raw.'
+    : 'Air stays near saturation — damp and heavy.';
+}
 
 // ── Day sentences ─────────────────────────────────────────────────────────────
 
@@ -114,6 +133,25 @@ const PART_LABEL: Record<DayPart, string> = {
   overnight: 'overnight',
 };
 
+/**
+ * NWS conditions carry their own probability qualifiers ("Slight Chance Rain
+ * Showers"). When we print a numeric peak chance, those words must go — they
+ * would either duplicate or contradict the number.
+ */
+function precipConditionPhrase(condition: string, rounded: number): string {
+  const lc = sentenceCaseCondition(condition);
+  if (!/(shower|rain|storm|drizzle|snow|sprinkle)/.test(lc)) {
+    return `${capFirst(lc)}, peak rain chance around ${rounded}%`;
+  }
+  const noun = lc
+    .replace(/\b(?:slight |isolated |scattered )?chance of /g, '')
+    .replace(/\blikely\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (rounded >= 60) return `${capFirst(noun)} likely, peak rain chance around ${rounded}%`;
+  return `A chance of ${noun}, peak chance around ${rounded}%`;
+}
+
 function precipSentence(d: DailyFacts): string | null {
   const peak = d.peakPopPct;
   if (peak == null || peak < 20) {
@@ -127,7 +165,7 @@ function precipSentence(d: DailyFacts): string | null {
     return `${lead} for much of the day, with rain chances increasing late in the day and overnight — peak chance around ${rounded}%.`;
   }
 
-  const condition = d.condition ? sentenceCaseCondition(d.condition) : 'rain';
+  const phrase = precipConditionPhrase(d.condition ?? 'rain', rounded);
 
   // Name a time of day only when the chance genuinely concentrates there —
   // a flat probability across the day has no timing story to tell.
@@ -138,16 +176,15 @@ function precipSentence(d: DailyFacts): string | null {
       ? ` in the ${PART_LABEL[d.peakPopPart]}`
       : '';
 
-  const damp =
-    isNearSaturation(d)
-      ? ' Air close to saturation, so it will feel raw and damp.'
-      : d.dewPointMedianF != null &&
-          d.dewPointMedianF >= 66 &&
-          (d.highTemperatureF ?? 0) <= 80 &&
-          peak >= 50
-        ? ' Not hot, but humid enough to feel heavy between showers.'
-        : '';
-  return `${capFirst(condition)}, peak rain chance around ${rounded}%${when}.${damp}`;
+  const damp = qualifiesNearSaturation(d)
+    ? ` ${saturationClause(d)}`
+    : d.dewPointMedianF != null &&
+        d.dewPointMedianF >= 66 &&
+        (d.highTemperatureF ?? 0) <= 80 &&
+        peak >= 50
+      ? ' Not hot, but humid enough to feel heavy between showers.'
+      : '';
+  return `${phrase}${when}.${damp}`;
 }
 
 /**
@@ -364,14 +401,33 @@ export function validateNarrative(
     if (!allowed.has(n)) violations.push(`untraceable number in narrative: ${n}`);
   }
 
-  // 5. Saturation language
+  // 5. Saturation language — same predicate the generator uses, so an
+  // out-of-daypart or non-persistent claim can never survive validation
   narrative.days.forEach((line, i) => {
     if (/saturation|saturated/i.test(line.text)) {
       const d = days[i];
-      const ok = d && ((d.minSpreadF != null && d.minSpreadF <= 3) || (d.maxDaytimeRhPct ?? 0) >= 90);
-      if (!ok) violations.push(`near-saturation claim unsupported on ${line.name}`);
+      if (!d || !qualifiesNearSaturation(d)) {
+        violations.push(`near-saturation claim unsupported on ${line.name}`);
+      }
+      if (d && (d.highTemperatureF ?? 0) >= 75 && /\braw\b/i.test(line.text)) {
+        violations.push(`"raw" used for warm saturated air on ${line.name}`);
+      }
     }
   });
+
+  // 5b. No identical comfort sentence on consecutive days
+  const comfortSentencesOf = (text: string): string[] =>
+    (text.match(/[^.?!]+[.?!]/g) ?? [])
+      .map((s) => s.trim())
+      .filter((s) => /saturation|humid|damp|relief|air movement|still air/i.test(s) && !/\d/.test(s));
+  for (let i = 1; i < narrative.days.length; i++) {
+    const prev = new Set(comfortSentencesOf(narrative.days[i - 1].text));
+    for (const s of comfortSentencesOf(narrative.days[i].text)) {
+      if (prev.has(s)) {
+        violations.push(`comfort sentence repeated on consecutive days: "${s}"`);
+      }
+    }
+  }
 
   // 6. Precipitation timing must be backed by source intervals
   narrative.days.forEach((line, i) => {
@@ -429,18 +485,37 @@ function fallbackNarrative(days: DailyFacts[], violations: string[]): Narrative 
   };
 }
 
+/**
+ * Drop any comfort-class sentence that would repeat verbatim from the
+ * previous day — the reader was already told.
+ */
+function dedupeConsecutiveComfort(dayTexts: string[]): string[] {
+  const isComfort = (s: string) =>
+    /saturation|humid|damp|relief|air movement|still air/i.test(s) && !/\d/.test(s);
+  let previous = new Set<string>();
+  return dayTexts.map((text) => {
+    const sentences = (text.match(/[^.?!]+[.?!]/g) ?? [text]).map((s) => s.trim());
+    const kept = sentences.filter((s) => !(isComfort(s) && previous.has(s)));
+    previous = new Set(sentences.filter(isComfort));
+    return kept.join(' ');
+  });
+}
+
 export function composeNarrative(
   days: DailyFacts[],
   forecast: NormalizedForecast,
   cacheKeyVersion: string = NARRATIVE_RULESET_VERSION
 ): Narrative {
+  const texts = dedupeConsecutiveComfort(
+    days.map((d) => (d.confidence === 'firm' ? firmDayText(d) : extendedDayText(d)))
+  );
   const candidate = {
     headline: buildHeadline(days, forecast),
-    days: days.map((d) => ({
+    days: days.map((d, i) => ({
       name: d.isToday ? `${d.dayName} (today)` : d.dayName,
       isToday: d.isToday,
       firm: d.confidence === 'firm',
-      text: d.confidence === 'firm' ? firmDayText(d) : extendedDayText(d),
+      text: texts[i],
     })),
     footnote: buildFootnote(days, forecast),
   };
