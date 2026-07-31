@@ -29,7 +29,7 @@ import {
   tensPhrase,
 } from '@/lib/weather/narrative';
 import { fetchNormalizedForecast, localParts } from '@/lib/weather/nws';
-import type { DailyFacts, NormalizedForecast } from '@/lib/weather/types';
+import type { DailyFacts, DewPointCategory, NormalizedForecast } from '@/lib/weather/types';
 
 export { NARRATIVE_RULESET_VERSION, roundPop, sentenceCaseCondition, tensPhrase };
 
@@ -56,7 +56,13 @@ export interface OutlookBrief {
   /** Active alert event names, most severe first (may be empty) */
   alerts: string[];
   headline: string;
-  days: { name: string; isToday: boolean; firm: boolean; text: string }[];
+  days: {
+    name: string;
+    isToday: boolean;
+    firm: boolean;
+    text: string;
+    dewPointCategory: DewPointCategory | null;
+  }[];
   footnote: string;
   meta: OutlookMeta;
 }

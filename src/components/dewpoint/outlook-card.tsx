@@ -5,8 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarSearch, LoaderCircle, Telescope } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { COMFORT_LEVELS } from '@/lib/dew-point';
 import { fetchOutlook, type OutlookBrief } from '@/lib/outlook';
 import { getPosition, isPermissionDenied } from '@/lib/geolocate';
+
+/**
+ * Emphasize the day's comfort word ("muggy", "oppressive") in its band's ink
+ * color. Presentation only — the narrative string itself is untouched.
+ */
+function renderDayText(text: string, ink: string | null, categoryWord: string | null) {
+  if (!ink || !categoryWord) return text;
+  const idx = text.toLowerCase().indexOf(categoryWord.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <strong className="font-bold" style={{ color: ink }}>
+        {text.slice(idx, idx + categoryWord.length)}
+      </strong>
+      {text.slice(idx + categoryWord.length)}
+    </>
+  );
+}
 
 interface OutlookCardProps {
   /** Coordinates already obtained by the main page, if any */
@@ -99,17 +119,34 @@ export default function OutlookCard({ coords }: OutlookCardProps) {
           </p>
 
           <ul className="flex flex-col gap-3">
-            {brief.days.map((d) => (
-              <li key={d.name} className="text-sm leading-relaxed">
-                <span className={cn('font-bold', d.isToday && 'text-primary')}>{d.name}</span>
-                {!d.firm && (
-                  <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-secondary-foreground/80">
-                    pattern read
+            {brief.days.map((d) => {
+              const band = d.dewPointCategory
+                ? COMFORT_LEVELS.find((l) => l.label === d.dewPointCategory)
+                : undefined;
+              return (
+                <li key={d.name} className="text-sm leading-relaxed">
+                  {band && (
+                    <span
+                      className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-baseline"
+                      style={{ backgroundColor: band.color }}
+                      title={band.label}
+                      aria-label={`Feels ${band.label.toLowerCase()}`}
+                      role="img"
+                    />
+                  )}
+                  <span className={cn('font-bold', d.isToday && 'text-primary')}>{d.name}</span>
+                  {!d.firm && (
+                    <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-secondary-foreground/80">
+                      pattern read
+                    </span>
+                  )}
+                  <span className="text-foreground/90">
+                    {' — '}
+                    {renderDayText(d.text, band?.ink ?? null, band?.label ?? null)}
                   </span>
-                )}
-                <span className="text-foreground/90"> — {d.text}</span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
 
           <p className="text-xs text-muted-foreground">
