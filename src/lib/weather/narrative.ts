@@ -9,7 +9,12 @@
 
 import { dewPointDescriptor } from '@/lib/dew-point';
 import { isHeatIndexMeaningful } from '@/lib/weather/heat-index';
-import type { DailyFacts, DayPart, NormalizedForecast } from '@/lib/weather/types';
+import type {
+  DailyFacts,
+  DayPart,
+  DewPointCategory,
+  NormalizedForecast,
+} from '@/lib/weather/types';
 
 /**
  * The one place the ruleset version is defined. Bumped on every change to the
@@ -24,6 +29,8 @@ export interface NarrativeDay {
   isToday: boolean;
   firm: boolean;
   text: string;
+  /** The day's dew-point comfort band, for the UI's color cues — null when no hourly dew point exists */
+  dewPointCategory: DewPointCategory | null;
 }
 
 export interface Narrative {
@@ -470,6 +477,7 @@ function fallbackNarrative(days: DailyFacts[], violations: string[]): Narrative 
       name: d.isToday ? `${d.dayName} (today)` : d.dayName,
       isToday: d.isToday,
       firm: d.confidence === 'firm',
+      dewPointCategory: d.dewPointCategory,
       text: [
         d.highTemperatureF != null ? `High near ${Math.round(d.highTemperatureF)}.` : null,
         d.dewPointMedianF != null ? `Dew point near ${Math.round(d.dewPointMedianF)}.` : null,
@@ -515,6 +523,7 @@ export function composeNarrative(
       name: d.isToday ? `${d.dayName} (today)` : d.dayName,
       isToday: d.isToday,
       firm: d.confidence === 'firm',
+      dewPointCategory: d.dewPointCategory,
       text: texts[i],
     })),
     footnote: buildFootnote(days, forecast),

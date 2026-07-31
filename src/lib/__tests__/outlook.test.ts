@@ -278,6 +278,42 @@ describe('Plainfield regression narrative', () => {
   it('matches the full seven-day snapshot', () => {
     expect(allText).toMatchSnapshot();
   });
+
+  it('carries each day dew-point category for the UI color cues', () => {
+    expect(brief.days.map((d) => d.dewPointCategory)).toEqual([
+      'Sticky', 'Sticky', 'Muggy', 'Muggy', 'Muggy', 'Oppressive', 'Oppressive',
+    ]);
+    // The category always agrees with the descriptor word in the day's own text
+    for (const d of brief.days) {
+      if (d.dewPointCategory) {
+        expect(d.text.toLowerCase()).toContain(d.dewPointCategory.toLowerCase());
+      }
+    }
+  });
+
+  it('gives extended pattern-read days no category rather than inventing one', async () => {
+    // Drop the last two fixture days from the hourly grid so they become extended
+    const base = plainfieldLoader();
+    const load = async (url: string) => {
+      const res = await base(url);
+      if (url.endsWith('/forecast/hourly')) {
+        return {
+          properties: {
+            ...res.properties,
+            periods: (res.properties as any).periods.filter(
+              (p: any) => p.startTime < '2026-08-04'
+            ),
+          },
+        };
+      }
+      return res;
+    };
+    const forecast = await fetchNormalizedForecast(LAT, LON, { load });
+    const b = composeOutlook(forecast, { now: PLAINFIELD_NOW });
+    const extended = b.days.filter((d) => !d.firm);
+    expect(extended.length).toBeGreaterThan(0);
+    for (const d of extended) expect(d.dewPointCategory).toBeNull();
+  });
 });
 
 describe('alerts', () => {
@@ -316,7 +352,7 @@ describe('invariant enforcement', () => {
     const facts = buildDailyFacts(forecast, '2026-07-30');
     const bad = {
       headline: 'A comfortable week — the feels-like never exceeds the air temperature.',
-      days: facts.map((d) => ({ name: d.dayName, isToday: false, firm: true, text: 'Air near saturation.' })),
+      days: facts.map((d) => ({ name: d.dayName, isToday: false, firm: true, dewPointCategory: null, text: 'Air near saturation.' })),
       footnote: '',
     };
     const violations = validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0');
@@ -560,7 +596,7 @@ describe('saturation is judged on the daypart being described', () => {
     const facts = buildDailyFacts(forecast, '2026-08-02');
     const bad = {
       headline: '',
-      days: [{ name: 'Sunday', isToday: false, firm: true, text: 'Air stays near saturation — damp and heavy.' }],
+      days: [{ name: 'Sunday', isToday: false, firm: true, dewPointCategory: null, text: 'Air stays near saturation — damp and heavy.' }],
       footnote: '',
     };
     const violations = validateNarrative(bad, facts, forecast, '2.0.0', '2.0.0');
@@ -618,7 +654,7 @@ describe('comfort sentences do not repeat on consecutive days', () => {
     const bad = {
       headline: '',
       days: facts.map((d) => ({
-        name: d.dayName, isToday: d.isToday, firm: true,
+        name: d.dayName, isToday: d.isToday, firm: true, dewPointCategory: null,
         text: 'Not hot, but humid enough to feel heavy between showers.',
       })),
       footnote: '',
